@@ -1,0 +1,193 @@
+system MouseInterrupted;
+
+clocks
+	clockM, clockI;
+
+gate
+	InitM;
+	Click(int);
+	SimpleClick(int);
+	DoubleClick(int);
+	Receive(int);
+	Send(int);
+	ResetHardware;
+	ResetSoftware;
+	InitI;	
+
+// Specification of the main process
+process MouseInterrupted;
+
+input
+	Click, Receive;
+
+output
+	SimpleClick, DoubleClick, Send;
+
+internal
+	InitM;
+
+variables
+	coordinateM: int;
+
+state
+	init : STARTM;
+	S0;
+	S1;
+	S2;
+	S3;
+
+
+transition
+
+	// Main Scenario
+	from STARTM
+		sync InitM()
+	to S0;
+	from S0	
+		if TRUE		
+		sync Click?(position)
+		do coordinateM := position
+		deadline lazy
+	to S1;
+	from S1	
+		when clockM <= 2
+		if TRUE			
+		sync Click?(position)
+		do coordinateM := position
+		deadline lazy
+	to S2;	
+	from S2
+		if (coordinateM = position)		
+		sync DoubleClick!(position)
+		do clockM := 0
+		deadline delayable
+	to S0;	
+	from S1
+		when clockM > 2
+		if (coordinateM = position)		
+		sync SimpleClick!(position)
+		do clockM := 0
+		deadline eager
+	to S0;
+	from S1	
+		if (coordinateM = position)		
+		sync Send!(position)
+		deadline lazy
+	to S3;
+	from S3	
+		if TRUE		
+		sync Receive?(position)
+		do coordinateM := position
+		deadline lazy
+	to S1;
+
+process Interruption;
+
+input
+	Send;
+
+output
+	Receive, ResetSoftware, ResetHardware;
+
+internal
+	InitI;
+
+variables
+	coordinateI: int;
+
+state
+	init : STARTI;
+	S5;
+	S6;
+	S7;
+
+transition
+
+	// Main Scenario
+	from STARTI
+		sync InitI()
+	to S5;
+	from S5
+		if TRUE
+		sync Send?(position)
+		do {coordinateI := position|
+		clickI := 0}
+		deadline lazy
+	to S6;
+	from S6			
+		if (coordinateI <> 0)		
+		sync ResetHardware!()
+		do coordinateI := 0
+		deadline lazy
+	to S7;
+	from S6			
+		if (coordinateI = 0)		
+		sync ResetSoftware!()
+		deadline lazy
+	to S7;
+	from S7
+		when clockI <= 1	
+		if (coordinateI = position)
+		sync Receive!(position)
+		deadline lazy
+	to S5;	
+
+process MouseInterruptedTP1;
+
+output
+	Send, Receive, SimpleClick;
+
+internal
+	InitM;
+
+state
+	init: START;
+	S20;
+	S21;
+	S22;
+	Accept;
+
+transition
+	// Main Scenario
+	from START
+		sync InitM()
+	to S20;
+	from S20
+		sync Send!(position)
+	to S21;
+	from S21
+		sync Receive!(position)
+	to S22;
+	from S22
+		sync SimpleClick!(position)
+	to Accept;
+
+process MouseInterruptedTP2;
+
+output
+	Send, Receive, DoubleClick;
+
+internal
+	InitM;
+
+state
+	init: START;
+	S20;
+	S21;
+	S22;
+	Accept;
+
+transition
+	// Main Scenario
+	from START
+		sync InitM()
+	to S20;
+	from S20
+		sync Send!(position)
+	to S21;
+	from S21
+		sync Receive!(position)
+	to S22;
+	from S22
+		sync DoubleClick!(position)
+	to Accept;

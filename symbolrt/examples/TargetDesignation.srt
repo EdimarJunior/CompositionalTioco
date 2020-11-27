@@ -1,0 +1,155 @@
+system TargetDesignation;
+
+clocks
+	clock1;
+
+gate
+	Init1;
+	SelectTD(int, int);
+	Undesignate(int);
+	ChangeModeRadar;
+	AircraftPosition(int, int, int);
+	TargetPosition(int, int, int);
+	Track(int);
+	ChangeModeHUD;
+	ReticlePositionHUDIn(int, int);
+	Designate(int);
+	ReticlePositionHUDOut(int, int);
+	FinishTargetDesignation(int);
+
+// Specification of the main process
+process TargetDesignation;
+
+input
+	SelectTD, AircraftPosition, ReticlePositionHUDIn;
+
+output
+	ChangeModeRadar, TargetPosition, ChangeModeHUD, ReticlePositionHUDOut, Designate, FinishTargetDesignation, Undesignate;
+
+internal
+	Init1;
+
+variables
+	modeTD: int;
+	azimuthTD: int;
+	elevationTD: int;
+	rangeTD: int;
+	targetTD: int;
+
+state
+	init : START;
+	S9;
+	S10;
+	S11;
+	S12;
+	S13;
+	S14;
+	S15;
+	S16;
+	S17;
+	S18;
+	S19;
+
+
+transition
+
+	// Main Scenario
+	from START
+		sync Init1()
+		deadline lazy
+	to S9;
+	from S9
+		sync SelectTD?(op, id)
+		do { modeTD := op| 	
+		     targetTD := id
+		}
+		deadline lazy
+	to S10;
+         //radarDesignation assumes 3
+	from S10
+		if modeTD = 3		
+		sync ChangeModeRadar!()
+		deadline lazy
+	to S11;
+	from S11		
+		sync AircraftPosition?(r, a, e)
+		do { rangeTD := r | 	
+		     azimuthTD := a | 
+		     elevationTD := e
+		}
+		deadline lazy
+	to S12;
+	from S12		
+		if (rangeTD = r AND azimuthTD = a AND elevationTD = e)		
+		sync TargetPosition!(r, a, e)
+		deadline lazy
+	to S13;
+	from S13		
+		if (targetTD = id)		
+		sync Track!(id)
+		deadline lazy
+	to S14;
+	from S14		
+		when clock1 = 200
+		if (targetTD = id)		
+		sync Designate!(id)
+		deadline lazy
+	to S18;
+	//undesignation target assumes 1
+	from S10
+		if (modeTD = 1 AND targetTD = id)		
+		sync Undesignate!(id)
+		deadline lazy
+	to S10;
+	//HUDDesignation assumes 2
+	from S10
+		if modeTD = 2		
+		sync ChangeModeHUD!()
+		deadline lazy
+	to S15;
+	from S15		
+		sync ReticlePositionHUDIn?(a, e)
+		do { azimuthTD := a | 
+		     elevationTD := e
+		}
+		deadline lazy
+	to S16;
+	from S16		
+		when clock1 = 200		
+		if (targetTD = id)		
+		sync Designate!(id)
+		deadline lazy
+	to S17;
+	from S17		
+		if (azimuthTD = a AND elevationTD = e)		
+		sync ReticlePositionHUDOut!(a, e)
+		deadline lazy
+	to S18;
+	from S18		
+		if (modeTD = op)		
+		sync FinishTargetDesignation!(op)
+		deadline lazy
+	to S19;
+
+process TargetDesignationTP1;
+
+output
+	TargetPosition;
+
+internal
+	Init1;
+
+state
+	init: START;
+	S60;
+	Accept;
+
+transition
+
+	// Main Scenario
+	from START
+		sync Init1()
+	to S60;
+	from S60
+		sync TargetPosition!(r, a, e)
+	to Accept;

@@ -1,0 +1,12 @@
+prefix=/home/mdeters/cvc3/cvc3-2.4.1-optimized-dynamic/INSTALLATION
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+datarootdir=/home/mdeters/cvc3/cvc3-2.4.1-optimized-dynamic/INSTALLATION/share
+datadir=${datarootdir}
+
+Name: CVC3
+Description: Automatic theorem prover for Satisfiability Modulo Theories (SMT) problems
+Version: 2.4.1
+Libs: -L${libdir} -lcvc3
+Cflags: -I${includedir}

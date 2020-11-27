@@ -1,0 +1,234 @@
+system AlarmSystem;
+
+clocks
+        clock, interruptionClock;
+
+gate
+        Init;
+        VerifyInvasion(int,int);
+        Interrupt(int);
+        PowerFailInterrupt;
+        NoInvasionDetected;
+        Error;
+        TriggerWindowBreakingAlarm(int);
+        TriggerDoorOpeningAlarm(int);
+        TriggerRoomMovementAlarm(int);
+        CallPolice(int);
+        TurnOnLights(int);
+        TransferToBackupPower;
+        ReactivateAlarmSystem;
+
+process BurglarAlarmSystem;
+
+input
+        VerifyInvasion,
+        Interrupt,
+        PowerFailInterrupt;
+
+output
+        NoInvasionDetected,
+        Error,
+        TriggerWindowBreakingAlarm,
+        TriggerDoorOpeningAlarm,
+        TriggerRoomMovementAlarm,
+        CallPolice,
+        TurnOnLights,
+        TransferToBackupPower,
+        ReactivateAlarmSystem;
+
+internal
+        Init;
+
+variables
+        room: int;
+        invasionType: int;
+        choice: int;
+
+state
+        init: START;
+        S1; S2; S3; S4; S5; S6;
+        I1; I2; I3;
+
+transition
+        from START
+                sync Init
+        to S1;
+
+        from S1
+                sync VerifyInvasion?(roomNumber, invType)
+                do {
+                room := roomNumber | invasionType := invType |
+                clock := 0
+                }
+        to S2;
+
+        from S2
+                if invasionType = 0
+                sync NoInvasionDetected!()
+        to S1;
+
+        from S2
+                if invasionType > 280
+                sync Error!()
+        to S6;
+            
+        from S2
+                when clock <= 500
+                if invasionType >= 1 AND invasionType <= 50 AND invasionType = windowNumber
+                sync TriggerWindowBreakingAlarm!(windowNumber)
+                do clock := 0
+        to S3;
+
+        from S2
+                when clock <= 500
+                if invasionType >= 51 AND invasionType <= 80 AND invasionType = doorNumber
+                sync TriggerDoorOpeningAlarm!(doorNumber)
+                do clock := 0
+        to S3;
+
+        from S2
+                when clock <= 500
+                if invasionType >= 81 AND invasionType <= 280 AND invasionType = movSensorNumber
+                sync TriggerRoomMovementAlarm!(movSensorNumber)
+                do clock := 0
+        to S3;
+
+        from S3
+                when clock <= 4000
+                if room = roomNumber
+                sync CallPolice!(roomNumber)
+                do clock := 0
+        to S4;
+
+        from S4
+                when clock <= 500
+                if room = roomNumber
+                sync TurnOnLights!(roomNumber)
+        to S5;
+
+        from I1
+                sync PowerFailInterrupt?()
+                do interruptionClock := 0
+        to I2;
+
+        from I2
+                sync TransferToBackupPower!()
+        to I3;
+
+        /*
+         * intCode = 1
+         */
+
+        from S1
+                if intCode = 1 AND choice = 0
+                sync Interrupt?(intCode)
+                do choice := intCode
+        to I1;
+
+        from I3
+                when interruptionClock <= 50
+                if choice = 1
+                sync ReactivateAlarmSystem!()
+        to S1;
+
+        /*
+         * intCode = 2
+         */
+
+        from S6
+                if intCode = 2 AND choice = 0
+                sync Interrupt?(intCode)
+                do choice := intCode
+        to I1;
+         
+        from I3
+                when interruptionClock <= 50
+                if choice = 2
+                sync ReactivateAlarmSystem!()
+        to S6;
+
+        /*
+         * intCode = 3
+         */
+
+        from S3
+                if intCode = 3 AND choice = 0
+                sync Interrupt?(intCode)
+                do choice := intCode
+        to I1;
+
+        from I3
+                when interruptionClock <= 50
+                if choice = 3
+                sync ReactivateAlarmSystem!()
+        to S3;
+
+        /*
+         * intCode = 4
+         */
+
+        from S4
+                if intCode = 4 AND choice = 0
+                sync Interrupt?(intCode)
+                do choice := intCode
+        to I1;
+
+        from I3
+                when interruptionClock <= 50
+                if choice = 4
+                sync ReactivateAlarmSystem!()
+        to S4;
+
+        /*
+         * intCode = 5
+         */
+
+        from S5
+                if intCode = 5 AND choice = 0
+                sync Interrupt?(intCode)
+                do choice := intCode
+        to I1;
+
+        from I3
+                when interruptionClock <= 50
+                if choice = 5
+                sync ReactivateAlarmSystem!()
+        to S5;
+
+process TP1;
+input
+        Interrupt;
+
+output
+        NoInvasionDetected,
+        Error,
+        TurnOnLights;
+
+internal
+        Init;
+
+state
+        init: START;
+        TP1; TP2; Accept; Reject;
+
+transition
+		from START
+				sync Init
+		to TP1;
+
+		from TP1
+				if intCode = 3
+				sync Interrupt?(intCode)
+		to TP2;
+
+		from TP2
+				sync TurnOnLights!(roomNumber)
+		to Accept;
+
+		from TP1
+			sync Error!()
+		to Reject;
+
+		from TP1
+			sync NoInvasionDetected!()
+		to Reject;

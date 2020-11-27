@@ -1,0 +1,10 @@
+# This file contains the properties of SYMBOLRT.
+
+# The path where the CVC3 SMT Solver is installed.
+cvc3 = /home/wilkerson/Ambiente/cvc3-2.4.1/bin/cvc3
+
+# The path where the symbolrtdbm is installed.
+symbolrtdbm = ./lib/symbolrtdbm
+
+# The path of the folder where SYMBOLRT stores the generated test cases.
+testcases = ./testcases/

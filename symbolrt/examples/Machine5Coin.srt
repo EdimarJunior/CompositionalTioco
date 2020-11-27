@@ -1,0 +1,98 @@
+system Machine5Coin;
+
+clocks
+	clock5Coin;
+
+gate
+	Init5Coin;
+	In5Coin(int);
+	Error5Coin;
+	Deliver5CoinSoftDrink;
+	Deliver5CoinCoffee;
+	Return5Coin(int);	
+
+// Specification of the main process
+process Machine5Coin;
+
+input
+	In5Coin;
+
+output
+	Deliver5CoinSoftDrink, Deliver5CoinCoffee, Error5Coin, Return5Coin;
+
+internal
+	Init5Coin;
+
+variables
+	number5Coin: int;
+
+state
+	init : START;
+	S5;
+	S6;
+	S7;
+	S8;
+
+transition
+
+	// Main Scenario
+	from START
+		sync Init5Coin()
+	to S5;
+	from S5		
+		sync In5Coin?(n)
+		do number5Coin := n
+		deadline lazy
+	to S6;	
+	//softDrink = 3
+	from S6
+		when clock5Coin < 5
+		if (number5Coin = 2)		
+		sync Deliver5CoinSoftDrink!()
+		do number5Coin := 0
+		deadline lazy
+	to S8;	
+	//coffee = 4
+	from S6
+		when clock5Coin < 5
+		if (number5Coin = 1)		
+		sync Deliver5CoinCoffee!()
+		do number5Coin := 0
+		deadline lazy
+	to S8;	
+	from S6
+		when clock5Coin >= 5
+		if (number5Coin > 0)		
+		sync Error5Coin!()
+		deadline eager
+	to S7;	
+	from S7
+		if (number5Coin = n)		
+		sync Return5Coin!(n)
+		do number5Coin := 0
+		deadline lazy
+	to S8;	
+
+
+process Machine5CoinTP1;
+
+output
+	Return5Coin;
+
+internal
+	Init5Coin;
+
+state
+	init: START;
+	S20;
+	Accept;
+
+transition
+
+	// Main Scenario
+	from START
+		sync Init5Coin()
+	to S20;
+	from S20
+		sync Return5Coin!(n)
+	to Accept;

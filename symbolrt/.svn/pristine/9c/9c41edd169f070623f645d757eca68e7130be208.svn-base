@@ -1,0 +1,105 @@
+system MainATM;
+
+clocks
+	clock;
+
+gate
+    Init;
+    Withdrawal(int);
+    InsufficientFunds(int);
+    PrintBalance(int);
+    DispenseCash(int);
+		
+process WithdrawalTransation1;
+
+input
+	Withdrawal;
+
+output
+    InsufficientFunds, PrintBalance, DispenseCash;
+
+internal
+    Init;		
+
+variables
+	balance: int;
+	withdrawalValue: int;
+
+state
+	init :START;
+	Idle;
+	Verify;
+	Print;		
+
+transition
+
+	from START
+		if balance > 0
+		sync Init()
+	to Idle;
+
+	from Idle
+		if amount > 0
+		sync Withdrawal?(amount)
+		do {
+			withdrawalValue := amount |
+			clock := 0
+		}
+	to Verify;
+
+	from Verify
+		when clock <= 10
+		if amount = withdrawalValue AND withdrawalValue <= balance
+		sync DispenseCash!(amount)
+		do
+			balance := balance - withdrawalValue
+	to Idle;
+
+	from Verify
+		when clock <= 2
+		if amount = withdrawalValue AND withdrawalValue > balance 
+		sync InsufficientFunds!(amount)
+		do
+            clock := 0
+	to Print;
+
+	from Print
+		when clock <= 5
+		if amount = balance
+		sync PrintBalance!(amount)
+	to Idle;
+	
+process TP1;
+
+input
+	Withdrawal;
+
+output
+    InsufficientFunds, DispenseCash;
+
+internal
+    Init;
+
+state
+    init: START;
+    EnterAmount;
+    Verify;
+    Accept;
+    Reject;
+
+transition
+	from START
+       sync Init()
+    to EnterAmount;
+
+	from EnterAmount
+       sync Withdrawal?(amount)
+    to Verify;
+
+	from Verify
+       sync DispenseCash!(amount)
+    to Accept;
+
+	from Verify
+       sync InsufficientFunds!(amount)
+    to Reject;

@@ -1,0 +1,113 @@
+system MessageApp;
+
+clocks
+	clockM;
+
+gate
+	SendMessageSelected(int, int);
+	Type(int);
+	Transmit(int, int);
+	DoneMessage(int);
+	ShowMessage(int);
+	InitM;
+
+// Specification of the main process
+process MessageApp;
+
+input
+	SendMessageSelected, Type;	
+
+output
+	Transmit, DoneMessage, ShowMessage;
+
+internal
+	InitM;
+
+variables
+	choice:int;
+	phoneNumber:int;
+	message: int;
+
+state
+	init : STARTM;
+	S17;
+	S18;
+	S19;
+	S20;
+	S21;
+	S22;
+	S23;
+
+transition
+	// Main Scenario
+	from STARTM
+		sync InitM()
+		deadline lazy
+	to S17;
+	from S17
+		if (TRUE)			
+		sync SendMessageSelected?(op, number)
+		do { choice := op| 	
+		     phoneNumber := number
+		}
+		deadline lazy
+	to S18;
+	//sendMessage assumes 1
+	from S18
+		if (choice = 1)		
+		sync Type?(data)
+		do message := data
+		deadline lazy
+	to S19;
+	from S19		
+		if (message = data AND phoneNumber = number)		
+		sync Transmit?(data, number)
+		do clockM := 0
+		deadline lazy
+	to S20;
+	//sendMessage assumes 1
+	from S20		
+		when clockM <= 2		
+		if (choice = 1 AND choice = op)		
+		sync DoneMessage!(op)
+		deadline lazy
+	to S21;
+	//searchMessage assumes 2
+	from S18
+		if (choice = 2 AND phoneNumber = number)		
+		sync ShowMessage!(number)
+		do clockM := 0
+		deadline lazy
+	to S22;
+	//searchMessage assumes 2
+	from S22
+		when clockM <= 2	
+		if (choice = 2 AND choice = op)
+		sync DoneMessage!(op)
+		deadline lazy
+	to S23;
+
+process MessageAppTP1;
+
+output
+	DoneMessage;
+
+internal
+	InitM;
+
+state
+	init: START;
+	S60;
+	Accept;
+
+transition
+
+	 //Main Scenario
+	from START
+		sync InitM()
+		deadline lazy
+	to S60;
+	from S60
+		sync DoneMessage!(op)
+		deadline lazy
+	to Accept;

@@ -1,0 +1,106 @@
+system MouseInterrupted;
+
+clocks
+	clockM, clockI;
+
+gate
+	InitM;
+	Click(int);
+	SimpleClick(int);
+	DoubleClick(int);
+	Receive(int);
+	Send(int);
+	ResetHardware;
+	ResetSoftware;
+	InitI;	
+
+// Specification of the main process
+process MouseInterrupted;
+
+input
+	Click, Receive;
+
+output
+	SimpleClick, DoubleClick, Send;
+
+internal
+	InitM;
+
+variables
+	coordinateM: int;
+
+state
+	init : START;
+	S0;
+	S1;
+	S2;
+	S3;
+	S4;
+
+transition
+
+	// Main Scenario
+	from START
+		sync InitM()
+	to S0;
+	from S0
+				
+		sync Click?(position)
+		do coordinateM := position
+		deadline lazy
+	to S1;
+	from S1	
+		if (coordinateM = position)		
+		sync Send!(position)
+		deadline lazy
+	to S2;
+	from S2			
+		sync Receive?(position)
+		do coordinateM := position
+		deadline lazy
+	to S3;
+	from S3
+			
+		sync Click?(position)
+		do coordinateM := position
+		deadline lazy
+	to S4;	
+	from S4
+		if (coordinateM = position)		
+		sync DoubleClick!(position)
+		do clockM := 0
+		deadline delayable
+	to S0;	
+	from S3
+		if (coordinateM = position)		
+		sync SimpleClick!(position)
+		do clockM := 0
+		deadline eager
+	to S0;
+
+
+process MouseInterruptedTP1;
+
+output
+	Send, Receive;
+
+internal
+	InitM;
+
+state
+	init: START;
+	S20;
+	S21;
+	Accept;
+
+transition
+	// Main Scenario
+	from START
+		sync InitM()
+	to S20;
+	from S20
+		sync Send!(position)
+	to S21;
+	from S21
+		sync Receive!(position)
+	to Accept;

@@ -1,0 +1,93 @@
+system Screen;
+
+clocks
+	clockS;
+
+gate
+	InitS;
+	SimpleClick(int);
+	DoubleClick(int);
+	PrintMenu(int);	
+	OpenApp(int);	
+
+// Specification of the main process
+process Screen;
+
+input
+	SimpleClick, DoubleClick;
+
+output
+	OpenApp, PrintMenu;
+
+internal
+	InitS;
+
+variables
+	coordinateS: int;
+
+state
+	init : START;
+	S3;
+	S4;
+	S5;
+
+transition
+
+	// Main Scenario
+	from START
+		sync InitS()
+	to S3;
+	from S3
+		when clockS <= 3		
+		sync SimpleClick?(position)
+		do coordinateS := position
+		deadline lazy
+	to S5;
+	from S3
+		when clockS > 3		
+		sync DoubleClick?(position)
+		do coordinateS := position
+		deadline lazy
+	to S4;
+	from S5
+		if (coordinateS = position)		
+		sync PrintMenu!(position)
+		do clockS := 0
+		deadline lazy
+	to S3;
+	from S4
+		when clockS > 6		
+		if (coordinateS = position)		
+		sync OpenApp!(position)
+		do clockS := 0
+		deadline lazy
+	to S3;
+
+process ScreenTP1;
+
+input
+	DoubleClick;
+
+output
+	OpenApp;
+
+internal
+	InitS;
+
+state
+	init: START;
+	S20;
+	S21;
+	Accept;
+
+transition
+
+	from START
+		sync InitS()
+	to S20;
+	from S20
+		sync DoubleClick?(position)
+	to S21;
+	from S21
+		sync OpenApp!(position)
+	to Accept;

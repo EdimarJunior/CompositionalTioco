@@ -1,0 +1,121 @@
+system CoffeeMachine;
+gate
+	Init;                 // ACTION_INTERNAL
+    Coin(int);            // ACTION_INPUT
+	Cancel;               // ACTION_INPUT
+	ChooseBeverage(bool); // ACTION_INPUT
+	Return(int);          // ACTION_OUTPUT
+	Deliver(bool);        // ACTION_OUTPUT
+
+process CoffeeMachine;
+input
+	Coin, Cancel, ChooseBeverage;
+
+output
+	Return, Deliver;
+
+internal
+	Init;
+
+variables
+	price: int;
+	total: int;
+	drink: bool;
+
+state
+	init: START;
+	Idle;
+	Pay;
+	Choose;
+	Return;
+	Delivery;
+
+transition
+	from START
+		if price > 0
+		sync Init
+		do total := 0
+	to Idle;
+
+	from Idle
+		if coin > 0
+		sync Coin?(coin)
+		do total := total + coin
+	to Pay;
+
+	from Idle
+		sync Cancel?()
+	to Return;
+
+	from Return
+		if moneyBack = total
+		sync Return!(moneyBack)
+		do total := 0
+	to Idle;
+
+	from Pay
+		if (total < price) AND (moneyBack = total)
+		sync Return!(moneyBack)
+		do total := 0
+	to Idle;
+
+	from Pay
+		if (total >= price) AND (moneyBack = total - price)
+		sync Return!(moneyBack)
+		do total := price
+	to Choose;
+
+	from Choose
+		if total = price
+		sync ChooseBeverage?(drinkRequest)
+		do drink := drinkRequest
+	to Delivery;
+
+	from Choose
+		sync Cancel?()
+	to Return;
+
+	from Delivery
+		if drink <=> drinkRequest
+		sync Deliver!(drinkRequest)
+		do total := 0
+	to Idle;
+
+process TP;
+input
+    Cancel;
+
+output
+    Deliver, Return;
+
+internal
+    Init;
+
+variables
+    price: int;
+    total: int;
+
+state
+    init: START;
+    Begin;
+    Accept;
+    Reject;
+
+transition
+    from START
+        sync Init
+    to Begin;
+
+    from Begin
+        if drinkRequest <=> TRUE
+        sync Deliver!(drinkRequest)
+    to Accept;
+
+    from Begin
+        sync Cancel?()
+    to Reject;
+
+    from Begin
+        if total < price
+        sync Return!(moneyBack)
+    to Reject;

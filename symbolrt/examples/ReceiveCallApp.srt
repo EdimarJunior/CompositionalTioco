@@ -1,0 +1,140 @@
+system ReceiveCallApp;
+
+clocks
+	clockR;
+
+gate
+	InitR;
+	CallSelected(int, int);
+	CallReceived;
+	Receive(int);
+	Reject(int);
+	DoneCall(int);
+	Talk(int);
+	SendMessageSelected(int, int);
+	SendInterruption;
+	ReceiveInterruption;
+	MessageAppSelected(int, int);
+
+// Specification of the main process
+process ReceiveCallApp;
+
+input
+	CallSelected, Receive, SendInterruption;
+
+output
+	CallReceived, MessageAppSelected, Reject, DoneCall, Talk, ReceiveInterruption;
+
+internal
+	InitR;
+
+variables
+	optionCall: int;
+	numberCall: int;
+	
+state
+	init : STARTR;
+	S24;
+	S25;
+	S26;
+	S27;
+	S28;
+	S29;
+	S30;
+	S31;
+	S32;
+	S35;
+
+transition
+	//Inserting the point in which the interruption is observed
+	from STARTR
+		if (TRUE)
+		sync InitR()
+		deadline lazy
+	to S35;
+	from S35
+		if (TRUE)
+		sync SendInterruption?()
+		deadline lazy
+	to S24;
+	from S24
+		if (TRUE)
+		sync CallSelected?(op, number)
+		do { optionCall := op|
+		     numberCall := number
+		}
+		deadline lazy
+	to S25;
+         //receiveCall assumes 3
+	from S25
+		if (optionCall = 3)		
+		sync CallReceived!()
+		deadline lazy
+	to S26;
+	from S26	
+		when clockR <= 1
+		if (TRUE)	
+		sync Receive?(op)
+		do optionCall := op
+		deadline lazy
+	to S27;
+        //rejectCall assumes 4
+	from S27		
+		if (optionCall = 4 AND numberCall = number)		
+		sync Reject!(number)
+		deadline lazy
+	to S28;
+        //rejectCall assumes 4
+	from S28		
+		if (optionCall = 4 AND optionCall = op)		
+		sync DoneCall!(op)
+		deadline lazy
+	to S29;
+	//Inserting the point in which the interruption is observed
+	from S29		
+		if (TRUE)		
+		sync ReceiveInterruption!()
+		deadline lazy
+	to S35;
+        //acceptCall assumes 5
+	from S27
+		if (optionCall = 5 AND numberCall = number)		
+		sync Talk!(number)
+		deadline lazy
+	to S30;
+        //acceptCall assumes 5
+	from S30
+		if (optionCall = 5 AND optionCall = op)
+		sync DoneCall!(op)
+		deadline lazy
+	to S29;
+        //sendMessage assumes 1
+	from S27		
+		if (optionCall = 1 AND optionCall = op AND numberCall = number)		
+		sync MessageAppSelected!(op, number)
+		deadline lazy
+	to S32;
+
+process ReceiveCallAppTP1;
+output
+	ReceiveInterruption;
+	
+internal
+	InitR;
+
+state
+	init: STARTR;
+	S60;
+	Accept;
+
+transition
+
+	 //Main Scenario
+	from STARTR
+		sync InitR()
+		deadline lazy
+	to S60;
+	from S60
+		sync ReceiveInterruption!()
+		deadline lazy
+	to Accept;

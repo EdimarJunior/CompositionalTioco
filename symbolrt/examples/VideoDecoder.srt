@@ -1,0 +1,123 @@
+system VideoDecoder;
+
+clocks
+	clockV;
+
+gate
+	initV;
+	sendVideo(int);
+	decode(int, int);
+	inverseQuantize(int);
+	inverseProcess(int);
+	controlVideo(int);
+	compensate(int);
+	add(int, int);
+	outputVideo(int);
+
+// Specification of the main process
+process VideoDecoder;
+
+input
+	decode, sendVideo;
+
+output
+	inverseQuantize, controlVideo, compensate, inverseProcess, add, outputVideo;
+
+internal
+	initV;
+
+variables
+	stream: int;
+	dequantizer: int;
+	controller: int;
+	video: int;
+	
+state
+	init : STARTV;
+	S9;
+	S10;
+	S11;
+	S12;
+	S13;
+	S14;
+	S15;
+	S16;
+
+transition
+	//Inserting the point in which the interruption is observed
+	from STARTV
+		if (TRUE)
+		sync initV()
+		deadline lazy
+	to S9;
+	from S9
+		when clockV <= 1
+		if (TRUE)
+		sync sendVideo?(data)
+		do stream := info
+		deadline lazy
+	to S10;
+	from S10
+		if (TRUE)
+		sync decode?(data1, data2)
+		do { dequantizer := data1|
+		     controller := data2
+		}
+		deadline lazy
+	to S11;
+	from S11
+		if (dequantizer = info)
+		sync inverseQuantize!(info)
+		deadline lazy
+	to S12;
+	from S12
+		if (dequantizer = info)
+		sync inverseProcess!(info)
+		deadline lazy
+	to S14;
+	from S11
+		if (controller = info)
+		sync controlVideo!(info)
+		deadline lazy
+	to S13;
+	from S13
+		if (controller = data)
+		sync compensate!(data)
+		deadline lazy
+	to S14;
+	from S14	
+		if (dequantizer = info AND controller = data)	
+		sync add!(info, data)
+		do video := data
+		deadline lazy
+	to S15;
+	from S15
+		if (video = data)	
+		sync outputVideo!(data)
+		deadline lazy
+	to S16;
+
+
+process VideoDecoderTP1;
+output
+	outputVideo;
+	
+internal
+	initV;
+
+state
+	init: STARTTP;
+	S60;
+	Accept;
+
+transition
+
+	 //Main Scenario
+	from STARTTP
+		sync initV()
+		deadline lazy
+	to S60;
+	from S60
+		sync outputVideo!(data)
+		deadline lazy
+	to Accept;

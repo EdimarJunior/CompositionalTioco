@@ -1,0 +1,92 @@
+system Interruption;
+
+clocks
+	clockI;
+
+gate
+	InitI;
+	Receive(int);
+	ResetHardware;
+	ResetSoftware;
+	Send(int);
+
+// Specification of the main process
+process Interruption;
+
+input
+	Send;
+
+output
+	Receive, ResetSoftware, ResetHardware;
+
+internal
+	InitI;
+
+variables
+	coordinateI: int;
+
+state
+	init : START;
+	S5;
+	S6;
+	S7;
+	S8;
+
+transition
+
+	// Main Scenario
+	from START
+		sync InitI()
+	to S5;
+	from S5
+		sync Send?(position)
+		do {coordinateI := position
+		| clockI := 0}
+		deadline lazy
+	to S6;
+	from S6			
+		if (coordinateI <> 0)		
+		sync ResetHardware!()
+		do coordinateI := 0
+		deadline lazy
+	to S7;
+	from S6			
+		if (coordinateI = 0)		
+		sync ResetSoftware!()
+		deadline lazy
+	to S7;
+	from S7
+		if (coordinateI = position)	
+		when clockI <= 1	
+		sync Receive!(position)
+		deadline lazy
+	to S8;	
+
+process InterruptionTP1;
+
+input 
+	Send;
+
+output
+	Receive;
+
+internal
+	InitI;
+
+state
+	init: START;
+	S20;
+	S21;
+	Accept;
+
+transition
+	// Main Scenario
+	from START
+		sync InitI()
+	to S20;
+	from S20
+		sync Send?(position)
+	to S21;
+	from S21
+		sync Receive!(position)
+	to Accept;

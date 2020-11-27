@@ -1,0 +1,98 @@
+system LightControlSystem;
+
+clocks
+	clock;
+
+gate
+    Init;
+    ReadSensor(int);
+    MaintainConfiguration;
+    TurnLightOn;
+    TurnLightOff;
+
+		
+process LCS;
+
+input
+	ReadSensor;
+
+output
+        MaintainConfiguration, TurnLightOn, TurnLightOff;
+
+internal
+    Init;		
+
+variables
+	occupation: int;
+	light: int;
+
+state
+	init :START;
+	L1;
+	L2;
+
+transition
+
+	from START
+		sync Init()
+	to L1;
+
+	from L1
+		sync ReadSensor?(isOccupied)
+		do {
+			occupation := isOccupied |
+			clock := 0
+		}
+	to L2;
+
+	from L2
+		if (occupation = 1 AND light = 1) OR (occupation = 0 AND light = 0)
+		sync MaintainConfiguration!()
+	to L1;
+
+	from L2
+		if occupation = 1 AND light = 0
+		sync TurnLightOn!()
+		do
+	            light := 1
+	to L1;
+
+	from L2
+		when clock >= 3
+		if occupation = 0 AND light = 1
+		sync TurnLightOff!()
+		do
+	            light := 0
+	to L1;
+	
+process TP;
+
+output
+    MaintainConfiguration, TurnLightOn, TurnLightOff;
+
+internal
+    Init;
+
+state
+    init: START;
+    L1;
+    Accept;
+    Reject;
+
+transition
+    from START
+       sync Init()
+    to L1;
+
+    from L1
+       sync TurnLightOn!()
+    to Accept;
+
+    from L1
+       sync TurnLightOff!()
+    to Reject;
+
+    from L1
+       sync MaintainConfiguration!()
+    to Reject;
+

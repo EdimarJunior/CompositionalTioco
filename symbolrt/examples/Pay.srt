@@ -1,0 +1,98 @@
+system Pay;
+
+clocks
+	clockP;
+
+gate
+	InitP;
+	Send(int);
+	Pay;
+	FinishSystem;
+	Sign(bool);
+	Discard;	
+
+// Specification of the main process
+process Pay;
+
+input
+	Send;
+
+output
+	Pay, FinishSystem, Sign, Discard;
+
+internal
+	InitP;
+
+variables
+	optionP: int;
+	signature: bool;
+
+state
+	init : START;
+	S5;
+	S6;
+	S7;
+	S8;
+	S9;
+	S10;
+
+transition
+
+	// Main Scenario
+	from START
+		sync InitP()
+	to S5;
+	from S5
+		sync Send?(op)
+		do { optionP := op |
+		     clockP := 0	
+		}
+	to S6;
+	//cash = 1   card = 2  check = 3 off = 4
+	from S6
+		when clockP  <= 20
+		if (optionP = 3 OR optionP = 1)				
+		sync Pay!()
+	to S7;
+	from S6
+		if (optionP = 4)				
+		sync FinishSystem!()
+	to S8;
+	from S6
+		when clockP  <= 20
+		if (optionP = 2)				
+		sync Sign!(info)
+		do signature := info
+	to S9;
+	from S9
+		if (signature = FALSE)		
+		sync Discard!()
+		do clockP := 0
+	to S6;	
+	from S9
+		if (signature = TRUE)				
+		sync Pay!()
+	to S10;
+
+process PayTP1;
+
+output
+	Send;
+
+internal
+	InitP;
+
+state
+	init: START;
+	S20;
+	Accept;
+
+transition
+
+	// Main Scenario
+	from START
+		sync InitP()
+	to S20;
+	from S20
+		sync Send!(op)
+	to Accept;

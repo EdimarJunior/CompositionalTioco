@@ -1,0 +1,600 @@
+/*
+ * SYmbolic Model-Based test case generation toOL for Real-Time systems (SYMBOLRT)
+ * (C) Copyright 2010-2012 Federal University of Campina Grande (UFCG)
+ * 
+ * This file is part of SYMBOLRT.
+ *
+ * SYMBOLRT is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * SYMBOLRT is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with SYMBOLRT.  If not, see <http://www.gnu.org/licenses/>.
+ * 
+ */
+ 
+// Developed by Jeanderson Barros Candido
+// contact: jbc.ufcg [at] gmail.com
+
+PARSER_BEGIN(TranslationUnit)
+
+package br.edu.ufcg.symbolrt.compiler.parser;
+
+import java.io.BufferedInputStream;
+import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.LinkedList;
+
+import br.edu.ufcg.symbolrt.compiler.synthesis.SynthesisUnit;
+import br.edu.ufcg.symbolrt.compiler.parser.base.*;
+import br.edu.ufcg.symbolrt.util.Constants;
+
+/**
+ * <code>TranslationUnit</code> Class. <br>
+ * This class is responsible for syntactical, lexical and semantics analysis.<br>
+ * In order to trigger the translation process, call
+ * {@link TranslationUnit#init(java.io.BufferedInputStream)
+ *
+ * @author Jeanderson Barros Candido ( <a
+ *         href="mailto:jbc.ufcg@gmail.com"
+ *         >jbc.ufcg@gmail.com</a> )
+ * 
+ * @version 1.0 <br>
+ *          SYmbolic Model-Based test case generation toOL for Real-Time systems
+ *          (SYMBOLRT) <br>
+ *          (C) Copyright 2010-2012 Federal University of Campina Grande (UFCG) <br>
+ *          <a
+ *          href="https://sites.google.com/a/computacao.ufcg.edu.br/symbolrt">
+ *          https://sites.google.com/a/computacao.ufcg.edu.br/symbolrt</a>
+ */
+public class TranslationUnit {
+
+	private static List<Element> clocks = null;
+	private static Map<String, AbstractTIOSTS> models = null;
+	private static Map<String, List<Integer>> typeTable = null;
+	private static Map<String, List<Element>> paramTable = null;
+	private static List<Token> gateIdentifiers = null;
+	private static String specificationID = null;
+
+    /**
+     * Initializes the translation process
+     * @param file The instantiated source
+     * @param specName the name of the specification model
+     */
+	public static void init(BufferedInputStream file, String specName) {
+		setUp();
+
+		TranslationUnit.specificationID = specName;
+		TranslationUnit parser = null;
+
+		try {
+			parser = new TranslationUnit(file);
+			parser.systemRule();
+			SynthesisUnit.init();
+
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Initializes data structures responsible for checking and storage data 
+	 */
+	private static void setUp() {
+		paramTable = new HashMap<String, List<Element>>();
+		typeTable = new HashMap<String, List<Integer>>();
+		clocks = new LinkedList<Element>();
+		models = new LinkedHashMap<String, AbstractTIOSTS>();
+		gateIdentifiers = new ArrayList<Token>();
+	}
+	
+	/**
+	 * Method used to get all {@link AbstractTIOSTS} models pre-compiled from source
+	 */
+	public static Map<String, AbstractTIOSTS> getModels() {
+		return TranslationUnit.models;
+	}
+	
+	/**
+	 * Method used to get all action parameters found
+	 */
+	public static Map<String, List<Element>> getParamsTable() {
+		return TranslationUnit.paramTable;
+	}
+	
+    /**
+	 * Method used to get all clocks definitions
+	 */
+	public static List<Element> getClocks() {
+		return TranslationUnit.clocks;
+	}
+
+}
+PARSER_END(TranslationUnit)
+
+// ignore empty spaces
+SKIP : {  " " | "\t" | "\n" | "\r" }
+
+// ignore comments
+SKIP :
+{
+  < "/*" (~[ "*" ])* "*"
+    ( "*" | ~[ "*", "/" ] (~[ "*" ])* "*" )*
+    "/" >
+| < "//" (~[ "\n", "\r" ])*
+    ( "\n" | "\r" | "\r\n" ) >
+}
+
+/* LEXICAL SPECIFICATION */
+
+TOKEN :
+{
+  <SYSTEM_TK: "system">
+| <CONST_TK: "const">
+| <CLOCKS_TK: "clocks">
+| <GATE_TK: "gate">
+
+// primitives
+
+| <INT_TK: "int">
+| <BOOL_TK: "bool">
+
+// operators
+
+| <MORETHEN_TK: ">" >
+| <MORETHENEQUALS_TK: ">=">
+| <EQUALS_TK: "=">
+| <LESSTHEN_TK: "<">
+| <LESSTHENEQUALS_TK: "<=">
+| <DIFF_TK: "<>">
+| <EQUIV_TK: "<=>">
+| <MINUS_TK: "-">
+| <NOT_TK: "NOT">
+| <AND_TK: "AND">
+| <PLUS_TK: "+">
+| <MULT_TK: "*">
+| <OR_TK: "OR">
+| <MOD_TK: "%">
+| <DIV_TK: "/">
+
+// primitives
+
+| <TRUE_TK: "TRUE">
+| <FALSE_TK: "FALSE">
+
+// process
+
+| <PROCESS_TK: "process">
+| <INPUT_ACT_TK: "input">
+| <OUTPUT_ACT_TK: "output">
+| <INTERNAL_ACT_TK: "internal">
+| <VARIABLES_TK: "variables">
+| <STATE_TK: "state">
+| <TRANSITION_TK: "transition">
+
+// other keywords
+
+| <INIT_STATE_TK: "init">
+| <FROM_TK: "from">
+| <DEADLINE_TK: "deadline">
+| <TO_TK: "to">
+| <WHEN_TK: "when">
+| <IF_TK: "if">
+| <SYNK_TK: "sync">
+| <INACT_TK: "?">
+| <OUTACT_TK: "!">
+| <DELAYABLE_TK: "delayable">
+| <EAGER_TK: "eager">
+| <LAZY_TK: "lazy">
+| <DO_TK: "do">
+
+| <CLOSE_PAR_TK: ")">
+| <OPEN_PAR_TK: "(">
+| <ASSIGNMENT: ":=">
+
+}
+
+TOKEN :
+{
+  < IDENTIFIER: <LETTER> (<LETTER>|<DIGIT>)* >
+| < INTEGER: <DIGIT> >
+| < #LETTER: (["A"-"Z","_","a"-"z"])+ >
+| < #DIGIT:(["0"-"9"])+ >
+
+}
+
+JAVACODE
+void setInputAction(Token aux_tk1, AbstractTIOSTS  process) {
+	AbstractAction action = new AbstractAction();
+	action.setIdentifier(new Element(aux_tk1));
+	action.setType(Constants.ACTION_INPUT);
+	process.addInputAction(action);
+}
+
+JAVACODE
+void setOutputAction(Token aux_tk1, AbstractTIOSTS process) {
+	AbstractAction action = new AbstractAction();
+	action.setIdentifier(new Element(aux_tk1));
+	action.setType(Constants.ACTION_OUTPUT);
+	process.addOutputAction(action);
+}
+
+JAVACODE
+void setInternalAction(Token aux_tk1, AbstractTIOSTS process) {
+	AbstractAction action = new AbstractAction();
+	action.setIdentifier(new Element(aux_tk1));
+	action.setType(Constants.ACTION_INTERNAL);
+	process.addInternalAction(action);
+}
+
+/* SYNTATICAL SPECIFICATION */
+
+Token binaryOperatorRule():
+{
+	Token tk = null;
+}
+{
+	( tk=<MULT_TK> | tk=<MOD_TK> | tk=<DIV_TK> | tk=<EQUIV_TK> | tk=<AND_TK> | tk=<OR_TK>)
+	{ return tk; }
+}
+
+Token unaryOperatorRule():
+{
+	Token tk = null;
+}
+{
+	(tk=<PLUS_TK>| tk=<MINUS_TK> | tk=<NOT_TK>)
+	{ return tk; }
+}
+
+Token clockOperatorRule():
+{
+	Token tk = null;
+}
+{
+	(tk=<MORETHEN_TK> | tk=<MORETHENEQUALS_TK> | tk=<EQUALS_TK> | tk=<LESSTHEN_TK> | tk=<LESSTHENEQUALS_TK>)
+	{ return tk; }
+}
+
+Token relationalOperatorRule():
+{
+	Token aux_tk = null;
+}
+{
+	(aux_tk=<DIFF_TK> | aux_tk=clockOperatorRule())
+	{return aux_tk;}
+}
+
+Token constantBodyRule():
+{
+	Token aux_tk = null;
+}
+{
+	(aux_tk=<TRUE_TK> | aux_tk=<FALSE_TK> | aux_tk=<INTEGER>)
+	{return aux_tk;}
+}
+
+
+void systemRule():
+{ 
+	Token tk = null;
+}
+{
+	<SYSTEM_TK> tk=<IDENTIFIER> ";"
+	[ <CONST_TK>
+		{ System.out.println("Warning: constant definitions are not implemented yet"); }
+		(<IDENTIFIER> "=" constantBodyRule() ";")+ ]
+	[ <CLOCKS_TK> tk=<IDENTIFIER>
+		{ clocks.add(new Element(tk)); }
+		("," tk=<IDENTIFIER> { clocks.add(new Element(tk)); })* ";" ]
+
+	<GATE_TK> (gateRule())+
+	(processRule())+
+	<EOF>
+}
+
+void gateRule():
+{
+	List<Integer> types = new ArrayList<Integer>();
+	Token tk = null;
+	int type = 0;
+}
+{
+	tk=<IDENTIFIER> { gateIdentifiers.add(tk); }
+	[ "("
+
+		[ type = primitiveTypeRule() { types.add(new Integer(type)); }
+		("," type=primitiveTypeRule() { types.add(new Integer(type)); })*
+		]
+
+	")" ] ";"
+	{
+		List<Integer> other = typeTable.put(tk.image, types); 
+		if (other != null) {
+			System.err.println("Error: Gate '" + tk.image +"' already exists");
+		}
+	}
+}
+
+int primitiveTypeRule(): {}
+{
+	<INT_TK> {return Constants.TYPE_INTEGER;}
+|   <BOOL_TK> {return Constants.TYPE_BOOLEAN;}
+}
+
+void processRule():
+{
+	AbstractTransition trans = null;
+	AbstractAction act = null;
+
+  	Token proc_tk = null;
+	Token aux_tk1 = null;
+	Token aux_tk2 = null;
+	
+	int type = 0;
+}
+{
+	<PROCESS_TK> proc_tk=<IDENTIFIER> ";"
+	{
+        AbstractTIOSTS process = new AbstractTIOSTS(new Element(proc_tk));
+        process.setIsSpecification(process.getName().equals(specificationID));
+    }
+	[ <INPUT_ACT_TK>
+		aux_tk1=<IDENTIFIER> { setInputAction(aux_tk1, process); }
+		("," aux_tk2=<IDENTIFIER>{ setInputAction(aux_tk2, process); })* ";" ]
+	
+	<OUTPUT_ACT_TK>
+		aux_tk1=<IDENTIFIER> { setOutputAction(aux_tk1, process); }
+		("," aux_tk2=<IDENTIFIER> { setOutputAction(aux_tk2, process); })* ";"
+	
+	[ <INTERNAL_ACT_TK>
+		aux_tk1=<IDENTIFIER> { setInternalAction(aux_tk1, process); }
+		("," aux_tk2=<IDENTIFIER> { setInternalAction(aux_tk2, process); })* ";" ]
+	
+	[ <VARIABLES_TK> ( aux_tk1=<IDENTIFIER> ":" type=primitiveTypeRule() ";"
+		{process.addVariable(new TypedElement(aux_tk1, type));})* ]
+	
+	<STATE_TK> (stateDeclarationRule(process))+
+	
+	<TRANSITION_TK> (trans = transitionRule() {process.addTransition(trans);})+
+	{
+		List<TypedElement> actparams = new ArrayList<TypedElement>();
+		for (Token gate_tk : gateIdentifiers) {
+			List<Element> params = paramTable.get(gate_tk.image);
+			List<Integer> types = typeTable.get(gate_tk.image);
+			if (params != null && types != null) {
+				for (int i = 0; i < params.size(); i++) {
+					TypedElement te = new TypedElement(params.get(i).getToken(), types.get(i));
+					if (!actparams.contains(te)) {
+						actparams.add(te);
+					}
+				}
+			}
+		}
+		for (TypedElement tp : actparams) {
+			process.addParameter(tp);
+		}
+		process.finishProcess();
+		models.put(process.getName(), process);
+	}
+}
+
+void stateDeclarationRule(AbstractTIOSTS proc):
+{
+	Token state_tk = null;
+}
+{
+	<INIT_STATE_TK> ":" state_tk=<IDENTIFIER> ";" { proc.addState(new StateElement(state_tk, true)); }
+|	state_tk=<IDENTIFIER> ";" { proc.addState(new StateElement(state_tk, false)); }
+}
+
+AbstractTransition transitionRule():
+{
+	Set<AbstractExpression> assignments = null;
+	AbstractTransition trans = null;
+	AbstractExpression expr = null;
+	AbstractAction act = null;
+	Token tk_id = null;
+	String deadlineType = null;
+}
+{
+	<FROM_TK> tk_id=<IDENTIFIER>
+		{ trans = new AbstractTransition(tk_id.beginLine);
+		  trans.setSource(new Element(tk_id)); }
+
+	[expr=clockGuardRule()]
+		{trans.setClockGuard(expr);}
+	[expr=dataGuardRule()]
+		{trans.setDataGuard(expr);} 
+	[act=actionRule()]
+		{trans.setAction(act);} 
+	[assignments=statementRule()]
+		{trans.setAssignments(assignments);}
+	
+	[ <DEADLINE_TK> deadlineType=deadlineTypeRule()]
+		{ trans.setDeadline(deadlineType); }
+
+	<TO_TK> tk_id=<IDENTIFIER> ";" { trans.setDestination(new Element(tk_id)); }
+	
+	{return trans;}
+}
+
+Set<AbstractExpression> statementRule():
+{
+	Set<AbstractExpression> assignments = new LinkedHashSet<AbstractExpression>();
+}
+{
+	<DO_TK> (assignmentRule(assignments) | assignmentSetRule(assignments))
+	
+	{ return assignments; }
+}
+
+void assignmentRule(Set<AbstractExpression> assignments):
+{
+	AbstractExpression expr = null;
+	Token aux = null;
+}
+{
+	aux=<IDENTIFIER>
+	{
+		Element e = new Element(aux);
+		if (clocks.contains(e)) {
+			expr = new AbstractExpression(true);
+		} else {
+			expr = new AbstractExpression();
+		}
+		expr.addElement(e);
+	}
+	aux=<ASSIGNMENT> { expr.addElement(new Element(aux)); }
+	expressionRule(expr)
+	
+	{ assignments.add(expr); }
+}
+
+void assignmentSetRule(Set<AbstractExpression> assignments):
+{}
+{
+	"{" assignmentRule(assignments) ("|" assignmentRule(assignments) )* "}"
+
+}
+
+
+AbstractExpression clockGuardRule():
+{
+	AbstractExpression expr = new AbstractExpression();
+	
+	Token clock_tk = null;
+	Token time_tk = null;
+	Token op_tk = null;
+	Token aux = null;
+}
+{
+	<WHEN_TK> clock_tk=<IDENTIFIER> op_tk=clockOperatorRule() time_tk=<INTEGER>
+		{ expr.addElement(new Element(clock_tk)); expr.addElement(new Element(op_tk));
+		  expr.addElement(new Element(time_tk)); }
+
+	(aux=<AND_TK> clock_tk=<IDENTIFIER> op_tk=clockOperatorRule() time_tk=<INTEGER>
+		{ expr.addElement(new Element(aux)); expr.addElement(new Element(clock_tk));
+          expr.addElement(new Element(op_tk));
+          expr.addElement(new Element(time_tk));}
+    )*
+    {return expr;}
+}
+
+AbstractExpression dataGuardRule():
+{
+	AbstractExpression expr = new AbstractExpression();
+}
+{
+	<IF_TK> expressionRule(expr)
+	{ return expr; }
+}
+
+AbstractAction actionRule():
+{
+	AbstractAction act = new AbstractAction();
+	Token aux_tk = null;
+}
+{
+	<SYNK_TK> aux_tk=<IDENTIFIER> { act.setIdentifier(new Element(aux_tk));
+		  act.setType(Constants.ACTION_INTERNAL); }
+	[otherActionRule(act)]
+
+	{return act;}
+}
+
+void otherActionRule(AbstractAction act):
+{
+	Token aux = null;
+}
+{
+	[( <INACT_TK> { act.setType(Constants.ACTION_INPUT); }
+		| <OUTACT_TK> { act.setType(Constants.ACTION_OUTPUT); })]
+
+	<OPEN_PAR_TK>
+		[ aux=<IDENTIFIER> { act.addParameter(new Element(aux)); }
+			("," aux=<IDENTIFIER>  { act.addParameter(new Element(aux)); })*
+		]
+	{
+		if (typeTable.containsKey(act.getName())) {
+			List<Element> other = paramTable.put(act.getName(), act.getParameters());
+			if (other != null && !other.equals(act.getParameters()))
+				System.err.println("Error: Action '"+act.getName()+"' has been already defined");
+		} else {
+		
+			System.err.println("Error: Action '" +act.getName()+"' has not been declared as a gate");
+		}
+	} 
+	<CLOSE_PAR_TK>
+}
+
+String deadlineTypeRule(): {}
+{
+	<DELAYABLE_TK> {return Constants.DEADLINE_DELAYABLE;}
+|   <EAGER_TK>  {return Constants.DEADLINE_EAGER;}
+|   <LAZY_TK> {return Constants.DEADLINE_LAZY;}
+}
+
+
+void expressionRule(AbstractExpression expr): {}
+{
+	termRule(expr) otherExpressionRule(expr)
+}
+
+void otherExpressionRule(AbstractExpression expr):
+{
+	Token aux = null;
+}
+{
+	aux=<PLUS_TK>  { expr.addElement(new Element(aux)); }
+		termRule(expr) otherExpressionRule(expr)
+|	aux=<MINUS_TK> { expr.addElement(new Element(aux)); }
+		termRule(expr) otherExpressionRule(expr)
+|	{}
+}
+
+void termRule(AbstractExpression expr): {}
+{
+	factorRule(expr) otherTermRule(expr)
+}
+
+void otherTermRule(AbstractExpression expr):
+{
+	Token aux = null;
+}
+{
+	aux=relationalOperatorRule()  { expr.addElement(new Element(aux)); }
+		termRule(expr) otherExpressionRule(expr)
+|	factorRule(expr) otherTermRule(expr)
+|	aux=binaryOperatorRule()  { expr.addElement(new Element(aux)); }
+		factorRule(expr) otherTermRule(expr)
+|	{}
+}
+
+void factorRule(AbstractExpression expr):
+{
+	Token aux = null;
+}
+{
+	aux=<IDENTIFIER> { expr.addElement(new Element(aux)); }
+	
+|	aux=constantBodyRule() { expr.addElement(new Element(aux)); }
+
+|	aux=unaryOperatorRule() { expr.addElement(new Element(aux)); }
+		expressionRule(expr)
+
+|	aux=<OPEN_PAR_TK> { expr.addElement(new Element(aux)); }
+		expressionRule(expr)
+	aux=<CLOSE_PAR_TK> { expr.addElement(new Element(aux)); }
+}

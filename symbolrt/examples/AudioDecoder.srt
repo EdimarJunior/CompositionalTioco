@@ -1,0 +1,129 @@
+system AudioDecoder;
+
+clocks
+	clockA;
+
+gate
+	initA;
+	sendAudio(int);
+	demultiplex(int, int, int);
+	scale(int);
+	decodeAllocation(int);
+	quantize(int);
+	inverse(int);
+	synthesize(int);
+	outputAudio(int);
+
+// Specification of the main process
+process AudioDecoder;
+
+input
+	sendAudio, demultiplex;
+
+output
+	decodeAllocation, inverse, quantize, scale, synthesize, outputAudio;
+
+internal
+	initA;
+
+variables
+	stream: int;
+	bit: int;
+	sample: int;
+	factor: int;
+	audio: int;
+	
+state
+	init : STARTA;
+	S17;
+	S18;
+	S19;
+	S20;
+	S21;
+	S22;
+	S23;
+	S24;
+
+transition
+	from STARTA
+		if (TRUE)
+		sync initA()
+		deadline lazy
+	to S17;
+	from S17
+		when clockA <= 1
+		if (TRUE)
+		sync sendAudio?(data)
+		do stream := data
+		deadline lazy
+	to S18;
+	from S18
+		if (TRUE)
+		sync demultiplex?(data1, data2, data3)
+		do { bit := data1|
+		     sample := data2|
+		     factor := data3
+		}
+		deadline lazy
+	to S19;
+	from S19
+		if (bit = data)
+		sync decodeAllocation!(data)
+		deadline lazy
+	to S20;
+	from S19
+		if (sample = data)
+		sync quantize!(data)
+		deadline lazy
+	to S20;
+	from S19
+		if (factor = data)
+		sync scale!(data)
+		deadline lazy
+	to S21;
+	from S20
+		if (sample = data)
+		sync inverse!(data)
+		deadline lazy
+	to S21;
+	from S21
+		if (stream = data)
+		sync scale!(data)
+		deadline lazy
+	to S22;
+	from S22
+		if (stream = data)
+		sync synthesize!(data)
+		do audio := data
+		deadline lazy
+	to S23;
+	from S23
+		if (audio = data)
+		sync outputAudio!(data)
+		deadline lazy
+	to S24;
+
+
+process AudioDecoderTP1;
+output
+	outputAudio;
+	
+internal
+	initA;
+
+state
+	init: STARTA;
+	S60;
+	Accept;
+
+transition
+
+	 //Main Scenario
+	from STARTA
+		sync initA()
+		deadline lazy
+	to S60;
+	from S60
+		sync outputAudio!(data)
+		deadline lazy
+	to Accept;

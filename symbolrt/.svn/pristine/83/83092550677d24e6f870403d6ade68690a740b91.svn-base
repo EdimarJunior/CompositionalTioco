@@ -1,0 +1,153 @@
+system MainTriangle;
+
+gate
+	Init;
+	ReadSides(int,int,int);
+	NotTriangle;
+	IsTriangle;
+	Equilateral;
+	Isosceles;
+	Scalene;
+
+process Triangle;
+
+input
+	ReadSides;
+output
+	NotTriangle, IsTriangle, Equilateral, Isosceles, Scalene;
+internal
+	Init;
+
+variables
+	a: int;
+	b: int;
+	c: int;
+
+state
+	init: START;
+	L1;
+	L2;
+	L3;
+	L4;
+	L5;
+	L6;
+	L7;
+
+transition
+
+	from START
+		if (a > 0) AND (b > 0) AND (c > 0)
+		sync Init()
+	to L1;
+	from L1
+		if (p > 0) AND (q > 0) AND (r > 0)
+		sync ReadSides?(p, q, r)
+		do { a := p | b := q | c := r }
+	to L2;
+	from L2
+		if (a > (b + c)) OR (b > (a + c)) OR (c > (a + b))
+		sync NotTriangle!()
+	to L3;
+	from L2
+		if (a < (b + c)) AND (b < (a + c)) AND (c < (a + b))
+		sync IsTriangle!()
+	to L4;
+	from L4
+		if (a = b) AND (b = c)
+		sync Equilateral!()
+	to L5;
+	from L4
+		if (a <> b) AND (a <> c) AND (b <> c)
+		sync Scalene!()
+	to L6;
+	from L4
+		if (NOT ((a = b) AND (b = c))) AND ((a = b) OR (b = c) OR (a = c))
+		sync Isosceles!()
+	to L7;
+	
+
+// NotTriangle
+process TP1;
+
+output
+	NotTriangle;
+internal
+	Init;
+state
+	init: START;
+	T1;
+	Accept;
+		
+transition
+	from START
+		sync Init()
+	to T1;
+	from T1
+		sync NotTriangle!()
+	to Accept;
+
+// Equilateral
+process TP2;
+		
+output
+	Equilateral;
+internal
+	Init;
+		
+state
+	init: START;
+	T1;
+	Accept;
+
+transition
+	from START
+		sync Init()
+	to T1;
+	from T1
+		sync Equilateral!()
+	to Accept;
+		
+
+// Isosceles
+process TP3;
+		
+output
+	Isosceles;
+internal
+	Init;
+			
+state
+	init: START;
+	T1;
+	Accept;
+		
+transition
+	from START
+		sync Init()
+	to T1;
+	from T1
+		sync Isosceles!()
+	to Accept;
+
+
+// Scaelene
+process TP4;
+
+
+output
+	Scalene;
+internal
+	Init;		
+
+state
+	init: START;
+	T1;
+	Accept;
+		
+transition
+	from START
+		sync Init()
+	to T1;
+	from T1
+		sync Scalene!()
+	to Accept;

@@ -1,0 +1,122 @@
+system Radar;
+
+clocks
+	clockR;
+
+gate
+	InitR;
+	SelectR(int);
+	Receive(int);
+	Display(int);
+	Range(int);
+	Detect(int);
+	TargetPosition(int, int, int);
+	Track(int);	
+
+// Specification of the main process
+process Radar;
+
+input
+	SelectR, Receive, Range, Detect, TargetPosition, Track;
+
+output
+	Display;
+
+internal
+	InitR;
+
+variables
+	modeR: int;
+	terrainView: int;
+	rangeContacts: int;
+	contactID: int;
+	rangeR: int;
+	azimuthR: int;
+	elevationR: int;
+
+state
+	init : START;
+	S36;
+	S37;
+	S38;
+	S39;
+	S40;
+	S41;
+
+transition
+
+	// Main Scenario
+	from START
+		sync InitR()
+	to S36;
+	from S36
+		sync SelectR?(op)
+		do { modeR := op| 	
+		     clock3 := 0
+		}
+	to S37;
+	//groundMap assumes 4
+	from S37
+		if modeR = 4		
+		sync Receive?(info)
+		do terrainView := info
+	to S38;
+	from S38
+		if info = terrainView		
+		sync Display!(info)
+	to S36;
+         //groundSearch assumes 6
+	from S37
+		if modeR = 6		
+		sync Range?(value)
+		do rangeContacts := value
+	to S39;
+	from S39
+		when clockR <= 82		
+		if rangeContacts > 10		
+		sync Detect?(value)
+		do {rangeContacts := 10 |
+		    contactID := value
+		}
+	to S40;
+	from S40			
+		sync TargetPosition?(r, a, e)
+		do {rangeR := r |
+		    azimuthR := a |
+		    elevationR := e
+		}
+	to S41;
+	from S41			
+		sync Track?(id)
+		do contactID := id
+	to S36;
+
+
+process RadarTP1;
+input
+	Receive;
+
+output
+	Display;
+
+internal
+	InitR;
+
+state
+	init: START;
+	S60;
+	S61;
+	Accept;
+
+transition
+
+	// Main Scenario
+	from START
+		sync InitR()
+	to S60;
+	from S60
+		sync Receive?(info)
+	to S61;
+	from S61
+		sync Display!(info)
+	to Accept;

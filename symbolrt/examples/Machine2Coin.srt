@@ -1,0 +1,98 @@
+system Machine2Coin;
+
+clocks
+	clock2Coin;
+
+gate
+	Init2Coin;
+	In2Coin(int);
+	Error2Coin;
+	Deliver2CoinCandy;
+	Deliver2CoinChocolate;
+	Return2Coin(int);	
+
+// Specification of the main process
+process Machine2Coin;
+
+input
+	In2Coin;
+
+output
+	Deliver2CoinChocolate, Deliver2CoinCandy, Error2Coin, Return2Coin;
+
+internal
+	Init2Coin;
+
+variables
+	number2Coin: int;
+
+state
+	init : START;
+	S1;
+	S2;
+	S3;
+	S4;
+
+transition
+
+	// Main Scenario
+	from START
+		sync Init2Coin()
+	to S1;
+	from S1			
+		sync In2Coin?(n)
+		do number2Coin := n
+		deadline lazy
+	to S2;	
+	//chocolate = 1
+	from S2
+		when clock2Coin < 5
+		if (number2Coin = 1)		
+		sync Deliver2CoinChocolate!()
+		do number2Coin := 0
+		deadline lazy
+	to S4;	
+	//candy = 2
+	from S2
+		when clock2Coin < 5
+		if (number2Coin = 2)		
+		sync Deliver2CoinCandy!()
+		do number2Coin := 0
+		deadline lazy
+	to S4;	
+	from S2
+		when clock2Coin >= 5
+		if (number2Coin > 0)		
+		sync Error2Coin!()
+		deadline eager
+	to S3;	
+	from S3
+		if (number2Coin = n)		
+		sync Return2Coin!(n)
+		do number2Coin := 0
+		deadline lazy
+	to S4;	
+
+
+process Machine2CoinTP1;
+
+output
+	Deliver2CoinCandy;
+
+internal
+	Init2Coin;
+
+state
+	init: START;
+	S20;
+	Accept;
+
+transition
+
+	// Main Scenario
+	from START
+		sync Init2Coin()
+	to S20;
+	from S20
+		sync Deliver2CoinCandy!()
+	to Accept;

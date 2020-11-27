@@ -1,0 +1,8 @@
+#!/bin/bash
+#
+# Script used to execute the SYMBOLRT tool.
+#
+
+
+java -Xms3000M -Xmx3000M -cp .:bin:lib/jgraphx.jar:lib/xstream.jar br.edu.ufcg.symbolrt.main.Main $1 $2 $3 $4
+[ $? -eq 0 ] && rm *.dbm *.cvc

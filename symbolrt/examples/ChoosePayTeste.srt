@@ -1,0 +1,190 @@
+system Choose;
+
+clocks
+	clockC, clockP;
+
+gate
+	InitC;
+	InitP;
+	Select(int);
+	Return;
+	PerformPayment;
+	Shutdown;
+	Send(int);
+	FinishSystem;
+	Discard;
+	Sign(int);
+	Pay;		
+
+// Specification of the main process
+process Choose;
+
+input
+	Select;
+
+output
+	Return, PerformPayment, Shutdown, Send;
+
+internal
+	InitC;
+
+variables
+	optionC: int;
+
+state
+	init : STARTC;
+	S0;
+	S1;
+	S2;
+	S3;
+
+transition
+
+	// Main Scenario
+	from STARTC
+		sync InitC()
+	to S0;
+	from S0
+		sync Select?(op)
+		do optionC := op
+	to S1;
+	from S1
+		when clockC  > 10		
+		if TRUE
+		sync Return!()
+		do clockC := 0
+	to S0;
+	//cash = 1   card = 2  check = 3 off = 4
+	from S1
+		when clockC  <= 10		
+		if (optionC = 1 OR optionC = 2 OR optionC = 3)	
+		sync PerformPayment!()
+	to S2;
+	from S1
+		when clockC  <= 10
+		if (optionC = 4)		
+		sync Shutdown!()
+	to S2;
+	from S2
+		if (optionC = op)
+		sync Send!(op)
+		deadline lazy		
+	to S3;
+
+// Specification of the main process
+process Pay;
+
+input
+	Send;
+
+output
+	Pay, FinishSystem, Sign, Discard;
+
+internal
+	InitP;
+
+variables
+	optionP: int;
+	signature: bool;
+
+state
+	init : STARTP;
+	S5;
+	S6;
+	S7;
+	S8;
+	S9;
+	S10;
+
+transition
+
+	// Main Scenario
+	from STARTP
+		sync InitP()
+	to S5;
+	from S5
+		sync Send?(op)
+		do { optionP := op |
+		     clockP := 0	
+		}
+	to S6;
+	//cash = 1   card = 2  check = 3 off = 4
+	from S6
+		when clockP  <= 20
+		if (optionP = 3 OR optionP = 1)				
+		sync Pay!()
+	to S7;
+	from S6
+		if (optionP = 4)				
+		sync FinishSystem!()
+	to S8;
+	from S6
+		when clockP  <= 20
+		if (optionP = 2)				
+		sync Sign!(info)
+		do signature := info
+	to S9;
+	from S9
+		if (signature = FALSE)		
+		sync Discard!()
+		do clockP := 0
+	to S6;	
+	from S9
+		if (signature = TRUE)				
+		sync Pay!()
+	to S10;
+
+process ChoosePayTP1;
+
+output
+	Send, Pay;
+
+internal
+	InitC;
+
+state
+	init: START;
+	S20;
+	S21;
+	Accept;
+
+transition
+
+	// Main Scenario
+	from START
+		sync InitC()
+	to S20;
+	from S20
+		if (op = 1)
+		sync Send!(op)
+	to S21;
+	from S21
+		sync Pay!()
+	to Accept;
+
+process ChoosePayTP2;
+
+output
+	Send, FinishSystem;
+
+internal
+	InitC;
+
+state
+	init: START;
+	S20;
+	S21;
+	Accept;
+
+transition
+
+	// Main Scenario
+	from START
+		sync InitC()
+	to S20;
+	from S20
+		sync Send!(op)
+	to S21;
+	from S21
+		sync FinishSystem!()
+	to Accept;

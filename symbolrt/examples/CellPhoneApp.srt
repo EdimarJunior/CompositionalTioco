@@ -1,0 +1,630 @@
+system CellPhoneApp;
+
+clocks
+	clockC, clockM, clockR;
+
+gate
+	InitC;
+	Select(int);
+	AddContactSelected;
+	Insert(int, int);
+	Display(int);
+	DoneContacts(int);
+	SearchContactSelected;
+	View(int);
+	EditContactSelected;
+	Delete(int);
+	MessageAppSelected(int, int);
+	DeleteContactSelected;
+	Type(int);
+	Transmit(int, int);
+	DoneMessage(int);
+	ShowMessage(int);
+	InitM;
+	InitR;
+	CallSelected(int, int);
+	CallReceived;
+	Receive(int);
+	Reject(int);
+	DoneCall(int);
+	Talk(int);
+	ReceiveInterruption;
+	SendInterruption;
+	Confirm(int);
+
+// Specification of ContactsApp process
+process ContactsApp;
+
+input
+	Select, Insert, View, ReceiveInterruption, Confirm;
+
+output
+	AddContactSelected, Display, DoneContacts, SearchContactSelected, MessageAppSelected, DeleteContactSelected, Delete, EditContactSelected, SendInterruption;
+
+internal
+	InitC;
+
+variables
+	optionContacts:int;
+	numberContacts: int;
+	contactName: int;
+
+state
+	init : STARTC;
+	S1;
+	S2;
+	S3;
+	S4;
+	S6;
+	S7;
+	S8;
+	S9;
+	S10;
+	S11;
+	S12;
+	S13;
+	S14;
+	S15;
+	S16;
+	S33;
+
+transition
+	from STARTC
+		if (TRUE)
+		sync InitC()
+		deadline lazy
+	to S1;
+	from S1
+		if (TRUE)			
+		sync Select?(op)
+		do optionContacts := op
+		deadline lazy
+	to S2;
+	//addContact assumes 6
+	from S2
+		if (optionContacts = 6)		
+		sync AddContactSelected!()
+		deadline lazy
+	to S3;
+	from S3	
+		if (TRUE)	
+		sync Insert?(name, number)
+		do { numberContacts := number | 	
+		     contactName := name
+		}
+		deadline lazy
+	to S4;
+	//addContact assumes 6
+	from S4	
+		if (optionContacts = 6 AND optionContacts = op)		
+		sync DoneContacts!(op)
+		deadline lazy
+	to S1;
+	//searchContact assumes 7
+	from S2
+		if (optionContacts = 7)		
+		sync SearchContactSelected!()
+		deadline lazy
+	to S6;
+	from S6
+		if (TRUE)		
+		sync View?(name)
+		do { numberContacts := number | 	
+		     contactName := name|
+		     clockC := 0
+		}
+		deadline lazy
+	to S7;
+	//Inserting the point in which the interruption is observed
+	from S7		
+		when clockC <= 1
+		if (contactName = info)		
+		sync Display!(info)
+		deadline lazy
+	to S8;
+	from S8		
+		if (TRUE)		
+		sync SendInterruption!()
+		deadline lazy
+	to S33;
+	from S33		
+		if (TRUE)		
+		sync ReceiveInterruption?()
+		deadline lazy
+	to S8;
+	from S8		
+		if (TRUE)		
+		sync Select?(op)
+		do optionContacts := op
+		deadline lazy
+	to S9;
+	//deleteContact assumes 9
+	from S9		
+		if (optionContacts = 9)		
+		sync DeleteContactSelected!()
+		deadline lazy
+	to S13;
+	from S13		
+		if (TRUE)		
+		sync Confirm?(info)
+		do answer := info
+		deadline lazy
+	to S14;
+	//deleteContact assumes 9
+	from S14	
+		if (contactName = name AND answer = 9)		
+		sync Delete!(name)
+		deadline lazy
+	to S15;
+	//deleteContact assumes 9
+	from S15	
+		if (optionContacts = 9 AND optionContacts = op)		
+		sync DoneContacts!(op)
+		deadline lazy
+	to S1;
+	//sendMessage assumes 1
+	from S9	
+		if (optionContacts = 1 AND numberContacts = number)		
+		sync MessageAppSelected!(op, number)
+		deadline lazy
+	to S16;
+	//editContact assumes 8
+	from S9	
+		if (optionContacts = 8)		
+		sync EditContactSelected!()
+		deadline lazy
+	to S10;
+	from S10	
+		if (TRUE)		
+		sync Insert?(name, number)
+		do { optionContacts := number|
+		     contactName := name|
+		     clockC := 0
+		}
+		deadline lazy
+	to S11;
+	from S11	
+		when clockC <= 1
+		if (numberContacts = info)		
+		sync Display!(info)
+		deadline lazy
+	to S12;
+	from S12
+		if (optionContacts = 8 AND optionContacts = op)		
+		sync DoneContacts!(op)
+		deadline lazy
+	to S1;
+
+// Specification of MessageApp process
+process MessageApp;
+
+input
+	MessageAppSelected, Type;	
+
+output
+	Transmit, DoneMessage, ShowMessage;
+
+internal
+	InitM;
+
+variables
+	choice:int;
+	phoneNumber:int;
+	message: int;
+
+state
+	init : STARTM;
+	S17;
+	S18;
+	S19;
+	S20;
+	S21;
+	S22;
+	S23;
+
+transition
+	// Main Scenario
+	from STARTM
+		if (TRUE)
+		sync InitM()
+		deadline lazy
+	to S17;
+	from S17
+		if (TRUE)			
+		sync MessageAppSelected?(op, number)
+		do { choice := op| 	
+		     phoneNumber := number|
+		     clockM := 0
+		}
+		deadline lazy
+	to S18;
+	//composeMessage assumes 1
+	from S18
+		if (choice = 1)		
+		sync Type?(data)
+		do message := data
+		deadline lazy
+	to S19;
+	from S19		
+		if (message = data AND phoneNumber = number)		
+		sync Transmit!(data, number)
+		do clockM := 0
+		deadline lazy
+	to S20;
+	//sendMessage assumes 1
+	from S20		
+		when clockM <= 2		
+		if (choice = 1 AND choice = op)		
+		sync DoneMessage!(op)
+		deadline lazy
+	to S21;
+	//searchMessage assumes 2
+	from S18
+		if (choice = 2 AND phoneNumber = number)		
+		sync ShowMessage!(number)
+		do clockM := 0
+		deadline lazy
+	to S22;
+	//searchMessage assumes 2
+	from S22
+		when clockM <= 2	
+		if (choice = 2 AND choice = op)
+		sync DoneMessage!(op)
+		deadline lazy
+	to S23;
+
+// Specification of ReceiveCallApp process
+process ReceiveCallApp;
+
+input
+	CallSelected, Receive, SendInterruption;
+
+output
+	CallReceived, MessageAppSelected, Reject, DoneCall, Talk, ReceiveInterruption;
+
+internal
+	InitR;
+
+variables
+	optionCall: int;
+	numberCall: int;
+	
+state
+	init : STARTR;
+	S24;
+	S25;
+	S26;
+	S27;
+	S28;
+	S29;
+	S30;
+	S32;
+	S35;
+
+transition
+	//Inserting the point in which the interruption is observed
+	from STARTR
+		if (TRUE)
+		sync InitR()
+		deadline lazy
+	to S35;
+	from S35
+		if (TRUE)
+		sync SendInterruption?()
+		deadline lazy
+	to S24;
+	from S24
+		if (TRUE)
+		sync CallSelected?(op, number)
+		do { optionCall := op|
+		     numberCall := number
+		}
+		deadline lazy
+	to S25;
+         //receiveCall assumes 3
+	from S25
+		if (optionCall = 3)		
+		sync CallReceived!()
+		deadline lazy
+	to S26;
+	from S26	
+		when clockR <= 1
+		if (TRUE)	
+		sync Receive?(op)
+		do optionCall := op
+		deadline lazy
+	to S27;
+        //rejectCall assumes 4
+	from S27		
+		if (optionCall = 4 AND numberCall = number)		
+		sync Reject!(number)
+		deadline lazy
+	to S28;
+        //rejectCall assumes 4
+	from S28		
+		if (optionCall = 4 AND optionCall = op)		
+		sync DoneCall!(op)
+		deadline lazy
+	to S29;
+	//Inserting the point in which the interruption is observed
+	from S29		
+		if (TRUE)		
+		sync ReceiveInterruption!()
+		deadline lazy
+	to S35;
+        //acceptCall assumes 5
+	from S27
+		if (optionCall = 5 AND numberCall = number)		
+		sync Talk!(number)
+		deadline lazy
+	to S30;
+        //acceptCall assumes 5
+	from S30
+		if (optionCall = 5 AND optionCall = op)
+		sync DoneCall!(op)
+		deadline lazy
+	to S29;
+        //sendMessage assumes 1
+	from S27		
+		if (optionCall = 1 AND optionCall = op AND numberCall = number)		
+		sync MessageAppSelected!(op, number)
+		deadline lazy
+	to S32;
+
+process CellPhoneAppTP3;
+
+input 
+	Select;
+
+output
+	Reject, Type, ShowMessage, SendInterruption, ReceiveInterruption, EditContactSelected, DeleteContactSelected, MessageAppSelected, Talk;
+
+internal
+	InitC;
+
+state
+	init: STARTTP1;
+	S60;
+	S61;
+	S62;
+	S63;
+	S64;
+	Accept;
+	Reject;
+
+transition
+
+	 //Main Scenario
+	from STARTTP1
+		if (TRUE)
+		sync InitC()
+		deadline lazy
+	to S60;
+	from S60
+		if (TRUE)
+		sync SendInterruption!()
+		deadline lazy
+	to S61;
+	from S61
+		if (TRUE)
+		sync Reject!(number)
+		deadline lazy
+	to S62;
+	from S62
+		if (TRUE)
+		sync ReceiveInterruption!()
+		deadline lazy
+	to S63;
+	from S63
+		if (TRUE)
+		sync MessageAppSelected!(op, number)
+		deadline lazy
+	to S64;
+	from S64
+		if (TRUE)
+		sync ShowMessage!(number)
+		deadline lazy
+	to Accept;
+	from S64
+		if (TRUE)
+		sync Type!(data)
+		deadline lazy
+	to Reject;
+	from S61
+		if (TRUE)
+		sync Talk!(number)
+		deadline lazy
+	to Reject;
+	from S63
+		if (TRUE)
+		sync DeleteContactSelected!()
+		deadline lazy
+	to Reject;
+	from S63
+		if (TRUE)
+		sync EditContactSelected!()
+		deadline lazy
+	to Reject;
+
+process CellPhoneAppTP4;
+
+output
+	DoneCall, SendInterruption, ReceiveInterruption, MessageAppSelected, DeleteContactSelected, EditContactSelected, Delete;
+
+internal
+	InitC;
+
+state
+	init: STARTTP1;
+	S60;
+	S61;
+	S62;
+	S63;
+	S64;
+	Accept;
+	Reject;
+
+transition
+
+	 //Main Scenario
+	from STARTTP1
+		if (TRUE)
+		sync InitC()
+		deadline lazy
+	to S60;
+	from S60
+		if (TRUE)
+		sync SendInterruption!()
+		deadline lazy
+	to S61;
+	from S61
+		if (optionCall = 5)
+		sync DoneCall!(op)
+		deadline lazy
+	to S62;
+	from S62
+		if (TRUE)
+		sync ReceiveInterruption!()
+		deadline lazy
+	to S63;
+	from S63
+		if (TRUE)
+		sync DeleteContactSelected!()
+		deadline lazy
+	to S64;
+	from S64
+		if (TRUE)
+		sync Delete!(name)
+		deadline lazy
+	to Accept;
+	from S63
+		if (TRUE)
+		sync MessageAppSelected!(op, number)
+		deadline lazy
+	to Reject;
+	from S63
+		if (TRUE)
+		sync EditContactSelected!()
+		deadline lazy
+	to Reject;
+
+process CellPhoneAppTP5;
+
+output
+	Reject, Display, SendInterruption, ReceiveInterruption, EditContactSelected, DeleteContactSelected, MessageAppSelected, Talk;
+
+internal
+	InitC;
+
+state
+	init: STARTTP1;
+	S60;
+	S61;
+	S62;
+	S63;
+	S64;
+	Accept;
+	Reject;
+
+transition
+
+	 //Main Scenario
+	from STARTTP1
+		if (TRUE)
+		sync InitC()
+		deadline lazy
+	to S60;
+	from S60
+		if (TRUE)
+		sync SendInterruption!()
+		deadline lazy
+	to S61;
+	from S61
+		if (TRUE)
+		sync Reject!(number)
+		deadline lazy
+	to S62;
+	from S62
+		if (TRUE)
+		sync ReceiveInterruption!()
+		deadline lazy
+	to S63;
+	from S63
+		if (TRUE)
+		sync EditContactSelected!()
+		deadline lazy
+	to S64;
+	from S64
+		if (TRUE)
+		sync Display!(info)
+		deadline lazy
+	to Accept;
+	from S61
+		if (TRUE)
+		sync Talk!(number)
+		deadline lazy
+	to Reject;
+	from S63
+		if (TRUE)
+		sync DeleteContactSelected!()
+		deadline lazy
+	to Reject;
+	from S63
+		if (TRUE)
+		sync MessageAppSelected!(op, number)
+		deadline lazy
+	to Reject;
+
+process CellPhoneAppTP6;
+
+input
+	CallSelected;
+
+output
+	SendInterruption, MessageAppSelected, DoneMessage, ReceiveInterruption;
+
+internal
+	InitC;
+
+state
+	init: STARTTP1;
+	S60;
+	S61;
+	S62;
+	S63;
+	Accept;
+	Reject;
+
+transition
+
+	 //Main Scenario
+	from STARTTP1
+		if (TRUE)
+		sync InitC()
+		deadline lazy
+	to S60;
+	from S60
+		if (TRUE)
+		sync SendInterruption!()
+		deadline lazy
+	to S61;
+	from S61
+		if (TRUE)
+		sync CallSelected?(op, number)
+		deadline lazy
+	to S62;
+	from S62
+		if (TRUE)
+		sync MessageAppSelected!(op, number)
+		deadline lazy
+	to S63;
+	from S63
+		if (TRUE)
+		sync DoneMessage!(op)
+		deadline lazy
+	to Accept;
+	from S62
+		if (TRUE)
+		sync ReceiveInterruption!()
+		deadline lazy
+	to Reject;

@@ -1,0 +1,2 @@
+INDEX VERSION 1.131+/home/natanas/Documentos/www/Tioco/symbolrt/.metadata/.plugins/org.eclipse.jdt.core
+1294053823.index

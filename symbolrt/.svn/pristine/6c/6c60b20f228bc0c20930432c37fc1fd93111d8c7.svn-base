@@ -1,0 +1,307 @@
+system AGVSystem;
+
+clocks
+	clock, periodicClock, interruptionClock;
+
+gate
+	Init;
+	ReadFile(int,int);
+	UpdateReferences(int);
+	Interrupt(int);
+	ObstacleDetectedInterrupt;
+	UpdatePath(int);
+	SelfDiagnosisInterrupt(int);
+	FileSuccessfullyReadMessage;
+	ReferencesSuccessfullyDecodedMessage;
+	PathSuccessfullyDecodedMessage;
+	StartMovingMessage;
+	WorkDoneMessage;
+	ReferencesUpdatedMessage;
+	CaptureImagesFromReferences;
+	MapUpdatedMessage;
+	ObstacleIdentifiedMessage;
+	ObstacleOvercomeMessage;
+	SelfDiagnosisPerformedMessage;
+
+
+	
+
+// Specification of the main process
+process AGV;
+
+input
+	ReadFile, UpdateReferences, Interrupt, ObstacleDetectedInterrupt, UpdatePath, SelfDiagnosisInterrupt;
+
+output
+	FileSuccessfullyReadMessage, ReferencesSuccessfullyDecodedMessage, PathSuccessfullyDecodedMessage,
+	StartMovingMessage, WorkDoneMessage, ReferencesUpdatedMessage, CaptureImagesFromReferences,
+	MapUpdatedMessage, ObstacleIdentifiedMessage, ObstacleOvercomeMessage, SelfDiagnosisPerformedMessage;
+
+internal
+	Init;
+
+variables
+	references: int;
+	path: int;
+	signal: int;
+	choice: int;
+
+state
+	init: START;
+	S1;
+	S2;
+	S3;
+	S4;
+	S5;
+	S6;
+	S7;
+	P1;
+	P2;
+	P3;
+	I11;
+	I12;
+	I13;
+	I14;
+	I21;
+	I22;
+
+transition
+
+	// Main Scenario
+	from START
+		sync Init()
+	to S1;
+	from S1
+		sync ReadFile?(initialRef, initialPath)
+		do { references := initialRef | path := initialPath }
+	to S2;
+	from S2
+		sync FileSuccessfullyReadMessage!()
+	to S3;
+	from S3
+		sync ReferencesSuccessfullyDecodedMessage!()
+	to S4;
+	from S4
+		sync PathSuccessfullyDecodedMessage!()
+	to S5;
+	from S5
+		sync StartMovingMessage!()
+		do { periodicClock := 0 }
+	to S6;
+	from S6
+		sync WorkDoneMessage!()
+	to S7;
+	
+	// Loop
+	from S6
+		when periodicClock = 2000
+		sync UpdateReferences?(ref)
+		do { references := ref }
+	to P1;
+	from P1
+		sync ReferencesUpdatedMessage!()
+		do { clock := 0 }
+	to P2;
+	from P2
+		when clock <= 300
+		sync CaptureImagesFromReferences!()
+		do { clock := 0 }
+	to P3;
+	from P3
+		when clock <= 200
+		sync MapUpdatedMessage!()
+		do { periodicClock := 0 }
+	to S6;
+	
+	// Obstacle detected interrupt
+	from S6
+		if intCode = 1 AND choice = 0
+		sync Interrupt?(intCode)
+		do { choice := intCode }
+	to I11;
+	from I11
+		sync ObstacleDetectedInterrupt?()
+		do { interruptionClock := 0 }
+	to I12;
+	from I12
+		sync ObstacleIdentifiedMessage!()
+	to I13;
+	from I13
+		sync UpdatePath?(newPath)
+		do { path := newPath }
+	to I14;
+	from I14
+		when interruptionClock <= 500
+		if choice = 1
+		sync ObstacleOvercomeMessage!()
+	to S6;
+	
+	// Self diagnosis interrupt
+	from S6
+		if intCode = 2 AND choice = 0
+		sync Interrupt?(intCode)
+		do { choice := intCode }
+	to I21;
+	from I21
+		sync SelfDiagnosisInterrupt?(inputSignal)
+		do { signal := inputSignal | interruptionClock := 0 }
+	to I22;
+	from I22
+		when interruptionClock <= 20
+		if choice = 2
+		sync SelfDiagnosisPerformedMessage!()
+	to S6;
+	
+
+	
+	
+// Scenario without loops and interruption
+process TP1;
+
+input
+	UpdateReferences, Interrupt;
+
+output
+	WorkDoneMessage;
+	
+internal
+	Init;
+
+state
+	init: START;
+	TP1;
+	Accept;
+	Reject;
+		
+transition
+	from START
+		sync Init()
+	to TP1;
+	from TP1
+		sync WorkDoneMessage!()
+	to Accept;
+	from TP1
+		sync UpdateReferences?(ref)
+	to Reject;
+	from TP1
+		sync Interrupt?(intCode)
+	to Reject;
+	
+
+	
+	
+// Scenario with one loop and no interruption
+process TP2;
+
+input
+	UpdateReferences, Interrupt;
+
+output
+	WorkDoneMessage;
+	
+internal
+	Init;
+
+state
+	init: START;
+	TP1;
+	TP2;
+	Accept;
+	Reject;
+		
+transition
+	from START
+		sync Init()
+	to TP1;
+	from TP1
+		sync UpdateReferences?(ref)
+	to TP2;
+	from TP2
+		sync WorkDoneMessage!()
+	to Accept;
+	from TP1
+		sync Interrupt?(intCode)
+	to Reject;
+	from TP2
+		sync Interrupt?(intCode)
+	to Reject;
+	
+	
+	
+	
+// Scenario with interruption 1 and no loops
+process TP3;
+
+input
+	UpdateReferences, Interrupt;
+
+output
+	WorkDoneMessage;
+	
+internal
+	Init;
+
+state
+	init: START;
+	TP1;
+	TP2;
+	Accept;
+	Reject;
+		
+transition
+	from START
+		sync Init()
+	to TP1;
+	from TP1
+		if intCode = 1
+		sync Interrupt?(intCode)
+	to TP2;
+	from TP2
+		sync WorkDoneMessage!()
+	to Accept;
+	from TP2
+		sync UpdateReferences?(ref)
+	to Reject;
+	from TP1
+		sync UpdateReferences?(ref)
+	to Reject;
+
+
+	
+	
+// Scenario with interruption 2 and no loops
+process TP4;
+
+input
+	UpdateReferences, Interrupt;
+
+output
+	WorkDoneMessage;
+	
+internal
+	Init;
+
+state
+	init: START;
+	TP1;
+	TP2;
+	Accept;
+	Reject;
+		
+transition
+	from START
+		sync Init()
+	to TP1;
+	from TP1
+		if intCode = 2
+		sync Interrupt?(intCode)
+	to TP2;
+	from TP2
+		sync WorkDoneMessage!()
+	to Accept;
+	from TP2
+		sync UpdateReferences?(ref)
+	to Reject;
+	from TP1
+		sync UpdateReferences?(ref)
+	to Reject;

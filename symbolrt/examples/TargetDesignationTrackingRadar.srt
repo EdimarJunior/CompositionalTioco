@@ -1,0 +1,582 @@
+system TargetDesignationTrackingRadar;
+
+clocks
+	clockR, clockTT, clockTD;
+
+gate
+	InitTD;
+	InitTT;
+	InitR;
+	InitTD_InitR;
+	SelectTD(int, int);
+	Undesignate(int);
+	ChangeModeRadar;
+	AircraftPosition(int, int, int);
+	TargetPosition(int, int, int);
+	Track(int);
+	ChangeModeHUD;
+	ReticlePositionHUDIn(int, int, int);
+	Designate(int);
+	ReticlePositionHUDOut(int, int, int);
+	FinishTargetDesignation(int, int);
+	FinishTargetTracking(int);
+	ReticlePositionHOTAS(int, int, int);
+	Update(int, int, int);
+	SelectR(int);
+	Receive(int);
+	Display(int);
+	Range(int);
+	Detect(int);
+
+// Specification of the main process
+process TargetDesignation;
+
+input
+	SelectTD, AircraftPosition, ReticlePositionHUDIn;
+
+output
+	ChangeModeRadar, TargetPosition, ChangeModeHUD, ReticlePositionHUDOut, Designate, FinishTargetDesignation, Undesignate;
+
+internal
+	InitTD;
+
+variables
+	modeTD: int;
+	azimuthTD: int;
+	elevationTD: int;
+	rangeTD: int;
+	targetTD: int;
+
+state
+	init : STARTTD;
+	S9;
+	S10;
+	S11;
+	S12;
+	S13;
+	S14;
+	S15;
+	S16;
+	S17;
+	S18;
+
+transition
+
+	// Main Scenario
+	from STARTTD
+		sync InitTD()
+		deadline lazy
+	to S9;
+	from S9
+		sync SelectTD?(op, info)
+		do { modeTD := op|
+		     targetTD := info
+		}
+		deadline lazy
+	to S10;
+         //radarDesignation assumes 3
+	from S10
+		if modeTD = 3		
+		sync ChangeModeRadar!()
+		deadline lazy
+	to S11;
+	from S11	
+		sync AircraftPosition?(r, a, e)
+		do { rangeTD := r | 	
+		     azimuthTD := a | 
+		     elevationTD := e
+		}
+	deadline lazy
+	to S12;
+	from S12		
+		if (rangeTD = r AND azimuthTD = a AND elevationTD = e)		
+		sync TargetPosition!(r, a, e)
+		deadline lazy
+	to S13;
+	from S13		
+		when clockTD <= 200
+		if (targetTD = info)		
+		sync Designate!(info)
+		deadline lazy
+	to S17;
+	//undesignation target assumes 1
+	from S10
+		if (modeTD = 1 AND targetTD = info)		
+		sync Undesignate!(info)
+		deadline lazy
+	to S10;
+	//HUDDesignation assumes 2
+	from S10
+		if modeTD = 2		
+		sync ChangeModeHUD!()
+		deadline lazy
+	to S14;
+	from S14		
+		sync ReticlePositionHUDIn?(r, a, e)
+		do { azimuthTD := a |
+		     rangeTD := r | 
+		     elevationTD := e
+		}
+		deadline lazy
+	to S15;
+	from S15		
+		when clockTD <= 200		
+		if (targetTD = info)		
+		sync Designate!(info)
+		deadline lazy
+	to S16;
+	from S16		
+		if (azimuthTD = a AND elevationTD = e AND rangeTD = r)		
+		sync ReticlePositionHUDOut!(r, a, e)
+		deadline lazy
+	to S17;
+	from S17		
+		if (modeTD = op AND targetTD = info)		
+		sync FinishTargetDesignation!(op, info)
+		deadline lazy
+	to S18;	
+
+process TargetTracking;
+
+input
+	AircraftPosition, FinishTargetDesignation, ReticlePositionHOTAS;	
+
+output
+	ChangeModeRadar, ChangeModeHUD, ReticlePositionHUDOut, FinishTargetTracking, Update, Track;
+
+internal
+	InitTT;
+
+variables
+	modeTT: int;
+	azimuthTT: int;
+	elevationTT: int;
+	rangeTT: int;
+	targetTT:int;
+
+state
+	init : STARTTT;
+	S21;
+	S22;
+	S23;
+	S24;
+	S25;
+	S26;
+	S27;
+	S28;
+	S29;
+
+transition
+	// Main Scenario
+	from STARTTT
+		sync InitTT()
+		deadline lazy
+	to S21;
+	from S21
+		if (TRUE)			
+		sync FinishTargetDesignation?(op, info)
+		do { modeTT := op| 	
+		     clockTT := 0| 
+		     targetTT := info
+		}
+		deadline lazy
+	to S22;
+	//radarDesignation assumes 3
+	from S22
+		if (modeTT = 3)		
+		sync ChangeModeRadar!()
+		deadline lazy
+	to S23;
+	from S23		
+		sync AircraftPosition?(r, a, e)
+		do { rangeTT := r | 	
+		     azimuthTT := a | 
+		     elevationTT := e
+		}
+		deadline lazy
+	to S25;
+	//HUDDesignation assumes 2
+	from S22
+		if (modeTT = 2)		
+		sync ChangeModeHUD!()
+		deadline lazy
+	to S24;
+	from S24	
+		sync ReticlePositionHOTAS?(r, a, e)
+		do { rangeTT := r | 	
+		     azimuthTT := a | 
+		     elevationTT := e
+		}
+		deadline lazy
+	to S25;
+	from S25		
+		if (targetTT = info)		
+		sync Track!(info)
+		deadline lazy
+	to S26;
+	from S26		
+		if (rangeTT = r AND azimuthTT = a AND elevationTT = e)		
+		sync ReticlePositionHUDOut!(r, a, e)
+		deadline lazy
+	to S27;
+	from S27
+		when clockTT <= 40		
+		if (rangeTT = r AND azimuthTT = a AND elevationTT = e)		
+		sync Update!(r, a, e)
+		deadline lazy
+	to S28;
+	from S28		
+		if (modeTT = op)		
+		sync FinishTargetTracking!(op)
+		deadline lazy
+	to S29;		
+
+process Radar;
+
+input
+	SelectR, Receive, Range, Detect, TargetPosition, Track;
+
+output
+	Display;
+
+internal
+	InitR;
+
+variables
+	modeR: int;
+	terrainView: int;
+	rangeContacts: int;
+	contactID: int;
+	rangeR: int;
+	azimuthR: int;
+	elevationR: int;
+
+state
+	init : STARTR;
+	S36;
+	S37;
+	S38;
+	S39;
+	S40;
+	S41;
+	S42;
+
+transition
+
+	// Main Scenario
+	from STARTR
+		sync InitR()
+	to S36;
+	from S36
+		sync SelectR?(op)
+		do modeR := op
+	to S37;
+	//groundMap assumes 4
+	from S37
+		if modeR = 4		
+		sync Receive?(info)
+		do terrainView := info
+	to S38;
+	from S38
+		if terrainView = info		
+		sync Display!(info)
+	to S36;
+         //groundSearch assumes 6
+	from S37
+		if modeR = 6		
+		sync Range?(value)
+		do rangeContacts := value
+	to S39;
+	from S39
+		when clockR <= 82		
+		if rangeContacts > 10		
+		sync Detect?(value)
+		do rangeContacts := value
+	to S40;
+	from S40			
+		sync TargetPosition?(r, a, e)
+		do {rangeR := r |
+		    azimuthR := a |
+		    elevationR := e
+		}
+	to S41;
+	from S41			
+		sync Track?(info)
+		do contactID := info
+	to S42;
+	from S42
+		if contactID = info			
+		sync Display!(info)
+	to S36;
+
+process TargetDesignationTrackingRadarTP1;
+
+output
+	Track, TargetPosition, ChangeModeRadar, Display;	
+
+internal
+	InitTD_InitR;
+
+state
+	init: STARTC;
+	S60;
+	S61;
+	S62;
+	S63;
+	Accept;
+
+transition
+
+	 //Main Scenario
+	from STARTC
+		sync InitTD_InitR()
+	to S60;
+	from S60
+		sync ChangeModeRadar!()
+	to S61;
+	from S61
+		sync TargetPosition!(r, a, e)
+	to S62;
+	from S62
+		sync Track!(info)
+	to S63;
+	from S63
+		sync Display!(info)
+	to Accept;
+
+
+
+process TargetDesignationTrackingRadarTP2;
+
+output
+	Track, TargetPosition, FinishTargetDesignation;	
+
+internal
+	InitTD_InitR;
+
+state
+	init: STARTC;
+	S60;
+	S61;
+	S62;
+	Accept;
+
+transition
+
+	 //Main Scenario
+	from STARTC
+		sync InitTD_InitR()
+	to S60;
+	from S60
+		sync TargetPosition!(r, a, e)
+	to S61;
+	from S61
+		sync Track!(info)
+	to S62;
+	from S62
+		sync FinishTargetDesignation!(op, info)
+	to Accept;
+
+//Scenario with independent actions from TargetDesignation and Radar subsystems
+//Starts an exception described inside its folder
+process TargetDesignationTrackingRadarTP3;
+
+input 
+	SelectTD, Receive;
+
+output
+	Undesignate, Display;	
+
+internal
+	InitTD_InitR;
+
+state
+	init: STARTC;
+	S60;
+	S61;
+	S62;
+	S63;
+	Accept;
+
+transition
+	from STARTC
+		sync InitTD_InitR()
+	to S60;
+	from S60
+		sync SelectTD?(op, info)
+	to S61;
+	from S61
+		sync Undesignate!(info)
+	to S62;
+	from S62
+		sync Receive?(info)
+	to S63;
+	from S63
+		sync Display!(info)
+	to Accept;
+
+//TD is interrupted by the selecion mode from Radar
+process TargetDesignationTrackingRadarTP4;
+
+input 
+	SelectTD, SelectR;
+
+output
+	Undesignate, ChangeModeHUD, ChangeModeRadar;	
+
+internal
+	InitTD_InitR;
+
+state
+	init: STARTC;
+	S60;
+	S61;
+	S62;
+	Accept;
+	Reject;
+
+transition
+	from STARTC
+		sync InitTD_InitR()
+	to S60;
+	from S60
+		sync SelectTD?(op, info)
+	to S61;
+	from S61
+		sync SelectR?(op)
+	to S62;
+	from S62
+		sync Undesignate!(info)
+	to Accept;
+	//Excluding scenarious that start in Radar subsystem
+	from S60
+		sync SelectR?(op)
+	to Reject;
+	from S62
+		sync SelectR?(op)
+	to Reject;
+	from S62
+		sync ChangeModeHUD!()
+	to Reject;
+	from S62
+		sync ChangeModeRadar!()
+	to Reject;
+
+//Scenario with TargetPosition! -> Track! integration actions
+process TargetDesignationTrackingRadarTP5;
+
+output
+	Track, TargetPosition;	
+
+internal
+	InitTD_InitR;
+
+state
+	init: STARTC;
+	S60;
+	S61;
+	Accept;
+
+transition
+
+	 //Main Scenario
+	from STARTC
+		sync InitTD_InitR()
+	to S60;
+	from S60
+		sync TargetPosition!(r, a, e)
+	to S61;
+	from S61
+		sync Track!(info)
+	to Accept;
+
+
+process TargetDesignationTrackingRadarTP8;
+
+input
+	SelectR, Receive, SelectTD;
+
+output
+	ChangeModeRadar;	
+
+internal
+	InitTD_InitR;
+
+state
+	init: STARTC;
+	S60;
+	S61;
+	Accept;
+
+transition
+
+	 //Main Scenario
+	from STARTC
+		sync InitTD_InitR()
+	to S60;
+	from S60
+		sync SelectR?(op)
+	to S61;
+	from S61
+		sync SelectTD?(op, info)
+	to Accept;
+
+//TD is interrupted by the selecion mode from Radar
+process TargetDesignationTrackingRadarTP9;
+
+input 
+	SelectTD, SelectR;
+
+output
+	Undesignate, ChangeModeHUD, ChangeModeRadar, TargetPosition, FinishTargetDesignation, Track, FinishTargetTracking;	
+
+internal
+	InitTD_InitR;
+
+state
+	init: STARTC;
+	S60;
+	S61;
+	S62;
+	S63;
+	S64;
+	S65;
+	Accept;
+	Reject;
+
+transition
+	from STARTC
+		sync InitTD_InitR()
+	to S60;
+	from S60
+		sync SelectTD?(op, info)
+	to S61;
+	from S61
+		sync SelectR?(op)
+	to S62;
+	from S62
+		sync TargetPosition!(r, a, e)
+	to S63;
+	from S63
+		sync FinishTargetDesignation!(op, info)
+	to S64;
+	from S64
+		sync Track!(info)
+	to S65;
+	from S65
+		sync FinishTargetTracking!(op)
+	to Accept;
+	//Excluding scenarious that start in Radar subsystem
+	from S60
+		sync SelectR?(op)
+	to Reject;
+	from S62
+		sync SelectR?(op)
+	to Reject;
+	from S62
+		sync ChangeModeHUD!()
+	to Reject;
+	from S62
+		sync ChangeModeRadar!()
+	to Reject;
+

@@ -1,0 +1,89 @@
+system Choose;
+
+clocks
+	clockC;
+
+gate
+	InitC;
+	Select(int);
+	Return;
+	PerformPayment;
+	Shutdown;
+	Send(int);	
+
+// Specification of the main process
+process Choose;
+
+input
+	Select;
+
+output
+	Return, PerformPayment, Shutdown, Send;
+
+internal
+	InitC;
+
+variables
+	optionC: int;
+
+state
+	init : START;
+	S0;
+	S1;
+	S2;
+	S3;
+
+transition
+
+	// Main Scenario
+	from START
+		sync InitC()
+	to S0;
+	from S0
+		sync Select?(op)
+		do optionC := op
+	to S1;
+	from S1
+		when clockC  > 10		
+		sync Return!()
+		do clockC := 0
+	to S0;
+	//cash = 1   card = 2  check = 3 off = 4
+	from S1
+		when clockC  <= 10		
+		if (optionC = 1 OR optionC = 2 OR optionC = 3)	
+		sync PerformPayment!()
+	to S2;
+	from S1
+		when clockC  <= 10
+		if (optionC = 4)		
+		sync Shutdown!()
+	to S2;
+	from S2
+		if (optionC = op)
+		sync Send!(op)
+		deadline lazy		
+	to S3;
+
+process ChooseTP1;
+
+output
+	Send;
+
+internal
+	InitC;
+
+state
+	init: START;
+	S20;
+	Accept;
+
+transition
+
+	// Main Scenario
+	from START
+		sync InitC()
+	to S20;
+	from S20
+		sync Send!(op)
+	to Accept;

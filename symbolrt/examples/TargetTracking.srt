@@ -1,0 +1,136 @@
+system TargetTracking;
+
+clocks
+	clock2;
+
+gate
+	Init2;
+	ChangeModeRadar;
+	AircraftPosition(int, int, int);
+	TargetPosition(int, int, int);
+	FinishTargetDesignation(int);
+	ChangeModeHUD;
+	ReticlePositionHOTAS(int, int, int);
+	Update(int, int, int);
+	ReticlePositionHUD(int, int, int);
+	FinishTargetTracking(int);
+
+// Specification of the main process
+process TargetTracking;
+
+input
+	AircraftPosition, FinishTargetDesignation, ReticlePositionHOTAS;	
+
+output
+	ChangeModeRadar, TargetPosition, ChangeModeHUD, ReticlePositionHUD, FinishTargetTracking, Update;
+
+internal
+	Init2;
+
+variables
+	modeTT: int;
+	azimuthTT: int;
+	elevationTT: int;
+	rangeTT: int;
+
+state
+	init : START;
+	S21;
+	S22;
+	S23;
+	S24;
+	S25;
+	S26;
+	S27;
+	S28;
+	S29;
+
+transition
+	// Main Scenario
+	from START
+		sync Init2()
+		deadline lazy
+	to S21;
+	from S21
+		if (TRUE)			
+		sync FinishTargetDesignation?(op)
+		do { modeTT := op| 	
+		     clock2 := 0
+		}
+		deadline lazy
+	to S22;
+	//radarDesignation assumes 3
+	from S22
+		if (modeTT = 3)		
+		sync ChangeModeRadar!()
+		deadline lazy
+	to S23;
+	from S23		
+		sync AircraftPosition?(r, a, e)
+		do { rangeTT := r | 	
+		     azimuthTT := a | 
+		     elevationTT := e
+		}
+		deadline lazy
+	to S24;
+	from S24		
+		if (rangeTT = r AND azimuthTT = a AND elevationTT = e)		
+		sync TargetPosition!(r, a, e)
+		deadline lazy
+	to S26;
+	//HUDDesignation assumes 2
+	from S22
+		if (modeTT = 2)		
+		sync ChangeModeHUD!()
+		deadline lazy
+	to S25;
+	from S25
+		if TRUE		
+		sync ReticlePositionHOTAS?(r, a, e)
+		do { rangeTT := r | 	
+		     azimuthTT := a | 
+		     elevationTT := e
+		}
+		deadline lazy
+	to S26;
+	from S26		
+		if (rangeTT = r AND azimuthTT = a AND elevationTT = e)		
+		sync ReticlePositionHUD!(r, a, e)
+		deadline lazy
+	to S27;
+	from S27
+		when clock2 = 40		
+		if (rangeTT = r AND azimuthTT = a AND elevationTT = e)		
+		sync Update!(r, a, e)
+		deadline lazy
+	to S28;
+	from S27		
+		if (modeTT = op)		
+		sync FinishTargetTracking!(op)
+		deadline lazy
+	to S28;
+	
+process TargetTrackingTP1;
+
+output
+	TargetPosition;
+
+internal
+	Init2;
+
+state
+	init: START;
+	S60;
+	Accept;
+
+transition
+
+	 //Main Scenario
+	from START
+		sync Init2()
+		deadline lazy
+	to S60;
+	from S60
+		sync TargetPosition!(r, a, e)
+		deadline lazy
+	to Accept;

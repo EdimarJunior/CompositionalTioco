@@ -1,0 +1,89 @@
+system Tuner;
+
+clocks
+	clockT;
+
+gate
+	initT;
+	receive(int);
+	tune(int);
+	reject(int);
+	read(int);
+
+// Specification of the main process
+process Tuner;
+
+input
+	receive, tune;
+
+output
+	reject, read;
+
+internal
+	initT;
+
+variables
+	userFrequency: int;
+	frequency: int;
+	
+state
+	init : STARTT;
+	S23;
+	S24;
+	S25;
+	S26;
+
+transition
+	from STARTT
+		if (TRUE)
+		sync initT()
+		deadline lazy
+	to S23;
+	from S23
+		when clockT <= 3
+		if (TRUE)
+		sync receive?(data)
+		do userFrequency := data
+		deadline lazy
+	to S24;
+	from S24
+		if (TRUE)
+		sync tune?(info)
+		do frequency := info
+		deadline lazy
+	to S25;
+	from S25
+		if (userFrequency <> frequency AND frequency = info)
+		sync reject!(info)
+		deadline lazy
+	to S24;
+	from S25
+		if (userFrequency = frequency AND frequency = signal)
+		sync read!(signal)
+		deadline lazy
+	to S26;
+
+
+process TunerTP1;
+output
+	read;
+	
+internal
+	initT;
+
+state
+	init: STARTA;
+	S60;
+	Accept;
+
+transition
+
+	 //Main Scenario
+	from STARTA
+		sync initT()
+		deadline lazy
+	to S60;
+	from S60
+		sync read!(signal)
+		deadline lazy
+	to Accept;

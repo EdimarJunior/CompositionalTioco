@@ -1,0 +1,91 @@
+system InterruptionSetTopBox;
+
+clocks
+	clockI;
+
+gate
+	InitI;
+	interrupt(int);
+	error(int);
+	finishSystem(int);
+	shutDown(int);
+
+// Specification of the main process
+process InterruptionSetTopBox;
+
+input
+	interrupt;
+
+output
+	error, finishSystem, shutDown;
+
+internal
+	InitI;
+
+variables
+	interruptionCode: int;
+	
+state
+	init : STARTI;
+	S5;
+	S6;
+	S7;
+	S8;
+
+
+transition
+	from STARTI
+		if (TRUE)
+		sync InitI()
+		deadline lazy
+	to S5;
+	from S5
+		if (TRUE)
+		sync interrupt?(code)
+		do interruptioCode := code
+		deadline lazy
+	to S6;
+	from S6
+	//external = 1
+		if (interruptionCode = 1 AND interruptionCode = code)
+		sync error!(code)
+		deadline lazy
+	to S7;
+	from S6
+	//internal = 2
+		if (interruptionCode = 2)
+		sync finishSystem!()
+		deadline lazy
+	to S7;
+	from S7
+		when clockI <= 4
+		if TRUE
+		sync shutDown!()
+		deadline lazy
+	to S8;
+
+
+
+process InterruptionSetTopBoxTP1;
+output
+	shutDown;
+	
+internal
+	InitI;
+
+state
+	init: STARTC;
+	S60;
+	Accept;
+
+transition
+
+	 //Main Scenario
+	from STARTC
+		sync InitI()
+		deadline lazy
+	to S60;
+	from S60
+		sync shutDown!()
+		deadline lazy
+	to Accept;

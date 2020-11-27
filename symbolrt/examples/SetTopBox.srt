@@ -1,0 +1,410 @@
+system SetTopBox;
+// (((Tuner ; Separator) || VideoDecoder) || AudioDecoder ) /\ Interruption
+
+clocks
+	clockS, clockT, clockV, clockA, clockI;
+
+gate
+	initS;
+	selectS(int);
+	read(int);
+	separateVideo(int);
+	separateAudio(int);
+	sendVideo(int);
+	sendAudio(int);
+	initT;
+	receive(int);
+	tune(int);
+	reject(int);
+	initV;
+	//decode e decodeallocation?
+	decode(int, int);
+	inverseQuantize(int);
+	inverseProcess(int);
+	controlVideo(int);
+	compensate(int);
+	add(int, int);
+	outputVideo(int);
+	initA;
+	demultiplex(int, int, int);
+	scale(int);
+	decodeAllocation(int);
+	quantize(int);
+	inverse(int);
+	synthesize(int);
+	outputAudio(int);
+	initI;
+	interrupt(int);
+	error(int);
+	finishSystem(int);
+	shutDown(int);
+	
+process Separator;
+
+input
+	read, selectS, separateAudio, separateVideo;
+
+output
+	sendAudio, sendVideo;
+
+internal
+	initS;
+
+variables
+	stream: int;
+	optionS: int;
+	stream: int;
+	
+state
+	init : STARTS;
+	S0;
+	S1;
+	S2;
+	S3;
+	S4;
+
+
+transition
+	from STARTS
+		if (TRUE)
+		sync initS()
+		deadline lazy
+	to S0;
+	from S0
+		when clockS <= 1
+		if (TRUE)
+		sync read?(signal)
+		do stream := signal
+		deadline lazy
+	to S1;
+	from S1
+		when clockS <= 2
+		if (TRUE)
+		sync selectS?(op)
+		do optionS := op
+		deadline lazy		
+	to S2;
+	//video = 3
+	from S2
+		if (optionS = 3)
+		sync separateVideo?(info)
+		do stream := info
+		deadline lazy
+	to S3;
+	//audio = 4
+	from S3
+		if (stream = 4)
+		sync sendVideo!(data)
+		deadline lazy
+	to S1;
+	from S2
+		if (optionS = 3)
+		sync separateAudio?(info)
+		do stream := info
+		deadline lazy
+	to S4;
+	from S4
+		if (stream = 4)
+		sync sendAudio!(data)
+		deadline lazy
+	to S1;
+
+process Tuner;
+
+input
+	receive, tune;
+
+output
+	reject, read;
+
+internal
+	initT;
+
+variables
+	userFrequency: int;
+	frequency: int;
+	
+state
+	init : STARTT;
+	S23;
+	S24;
+	S25;
+	S26;
+
+transition
+	from STARTT
+		if (TRUE)
+		sync initT()
+		deadline lazy
+	to S23;
+	from S23
+		when clockT <= 3
+		if (TRUE)
+		sync receive?(data)
+		do userFrequency := data
+		deadline lazy
+	to S24;
+	from S24
+		if (TRUE)
+		sync tune?(info)
+		do frequency := info
+		deadline lazy
+	to S25;
+	from S25
+		if (userFrequency <> frequency AND frequency = info)
+		sync reject!(info)
+		deadline lazy
+	to S24;
+	from S25
+		if (userFrequency = frequency AND frequency = signal)
+		sync read!(signal)
+		deadline lazy
+	to S26;
+
+process VideoDecoder;
+
+input
+	decode, sendVideo;
+
+output
+	inverseQuantize, controlVideo, compensate, inverseProcess, add, outputVideo;
+
+internal
+	initV;
+
+variables
+	stream: int;
+	dequantizer: int;
+	controller: int;
+	video: int;
+	
+state
+	init : STARTV;
+	S9;
+	S10;
+	S11;
+	S12;
+	S13;
+	S14;
+	S15;
+	S16;
+
+transition
+	//Inserting the point in which the interruption is observed
+	from STARTV
+		if (TRUE)
+		sync initV()
+		deadline lazy
+	to S9;
+	from S9
+		when clockV <= 1
+		if (TRUE)
+		sync sendVideo?(data)
+		do stream := info
+		deadline lazy
+	to S10;
+	from S10
+		if (TRUE)
+		sync decode?(data1, data2)
+		do { dequantizer := data1|
+		     controller := data2
+		}
+		deadline lazy
+	to S11;
+	from S11
+		if (dequantizer = info)
+		sync inverseQuantize!(info)
+		deadline lazy
+	to S12;
+	from S12
+		if (dequantizer = info)
+		sync inverseProcess!(info)
+		deadline lazy
+	to S14;
+	from S11
+		if (controller = info)
+		sync controlVideo!(info)
+		deadline lazy
+	to S13;
+	from S13
+		if (controller = data)
+		sync compensate!(data)
+		deadline lazy
+	to S14;
+	from S14	
+		if (dequantizer = info AND controller = data)	
+		sync add!(info, data)
+		do video := data
+		deadline lazy
+	to S15;
+	from S15
+		if (video = data)	
+		sync outputVideo!(data)
+		deadline lazy
+	to S16;
+
+process AudioDecoder;
+
+input
+	sendAudio, demultiplex;
+
+output
+	decodeAllocation, inverse, quantize, scale, synthesize, outputAudio;
+
+internal
+	initA;
+
+variables
+	stream: int;
+	bit: int;
+	sample: int;
+	factor: int;
+	audio: int;
+	
+state
+	init : STARTA;
+	S17;
+	S18;
+	S19;
+	S20;
+	S21;
+	S22;
+	S23;
+	S24;
+
+transition
+	from STARTA
+		if (TRUE)
+		sync initA()
+		deadline lazy
+	to S17;
+	from S17
+		when clockA <= 1
+		if (TRUE)
+		sync sendAudio?(data)
+		do stream := data
+		deadline lazy
+	to S18;
+	from S18
+		if (TRUE)
+		sync demultiplex?(data1, data2, data3)
+		do { bit := data1|
+		     sample := data2|
+		     factor := data3
+		}
+		deadline lazy
+	to S19;
+	from S19
+		if (bit = data)
+		sync decodeAllocation!(data)
+		deadline lazy
+	to S20;
+	from S19
+		if (sample = data)
+		sync quantize!(data)
+		deadline lazy
+	to S20;
+	from S19
+		if (factor = data)
+		sync scale!(data)
+		deadline lazy
+	to S21;
+	from S20
+		if (sample = data)
+		sync inverse!(data)
+		deadline lazy
+	to S21;
+	from S21
+		if (stream = data)
+		sync scale!(data)
+		deadline lazy
+	to S22;
+	from S22
+		if (stream = data)
+		sync synthesize!(data)
+		do audio := data
+		deadline lazy
+	to S23;
+	from S23
+		if (audio = data)
+		sync outputAudio!(data)
+		deadline lazy
+	to S24;
+
+process InterruptionSetTopBox;
+
+input
+	interrupt;
+
+output
+	error, finishSystem, shutDown;
+
+internal
+	initI;
+
+variables
+	interruptionCode: int;
+	
+state
+	init : STARTI;
+	S5;
+	S6;
+	S7;
+	S8;
+
+
+transition
+	from STARTI
+		if (TRUE)
+		sync initI()
+		deadline lazy
+	to S5;
+	from S5
+		if (TRUE)
+		sync interrupt?(code)
+		do interruptioCode := code
+		deadline lazy
+	to S6;
+	from S6
+	//external = 1
+		if (interruptionCode = 1 AND interruptionCode = code)
+		sync error!(code)
+		deadline lazy
+	to S7;
+	from S6
+	//internal = 2
+		if (interruptionCode = 2)
+		sync finishSystem!()
+		deadline lazy
+	to S7;
+	from S7
+		when clockI <= 4
+		if TRUE
+		sync shutDown!()
+		deadline lazy
+	to S8;
+
+process SetTopBoxTP1;
+output
+	sendAudio;
+	
+internal
+	initT;
+
+state
+	init: STARTA;
+	S60;
+	Accept;
+
+transition
+
+	 //Main Scenario
+	from STARTA
+		sync initT()
+		deadline lazy
+	to S60;
+	from S60
+		if (TRUE)
+		sync sendAudio!(data)
+		deadline lazy
+	to Accept;

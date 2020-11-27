@@ -1,0 +1,109 @@
+system Separator;
+
+clocks
+	clockS;
+
+gate
+	initS;
+	selectS(int);
+	read(int);
+	separateVideo(int);
+	separateAudio(int);
+	sendVideo(int);
+	sendAudio(int);
+
+// Specification of the main process
+process Separator;
+
+input
+	read, selectS, separateAudio, separateVideo;
+
+output
+	sendAudio, sendVideo;
+
+internal
+	initS;
+
+variables
+	data: int;
+	optionS: int;
+	stream: int;
+	
+state
+	init : STARTS;
+	S0;
+	S1;
+	S2;
+	S3;
+	S4;
+
+
+transition
+	from STARTS
+		if (TRUE)
+		sync initS()
+		deadline lazy
+	to S0;
+	from S0
+		when clockS <= 1
+		if (TRUE)
+		sync read?(signal)
+		do data := signal
+		deadline lazy
+	to S1;
+	from S1
+		when clockS <= 2
+		if (TRUE)
+		sync selectS?(op)
+		do optionS := op
+		deadline lazy		
+	to S2;
+	//video = 3
+	from S2
+		if (optionS = 3)
+		sync separateVideo?(info)
+		do stream := info
+		deadline lazy
+	to S3;
+	//audio = 4
+	from S3
+		if (stream = 4)
+		sync sendVideo!(data)
+		deadline lazy
+	to S0;
+	from S2
+		if (optionS = 3)
+		sync separateAudio?(info)
+		do stream := info
+		deadline lazy
+	to S4;
+	from S4
+		if (stream = 4)
+		sync sendAudio!(data)
+		deadline lazy
+	to S0;
+
+
+process SeparatorTP1;
+output
+	sendVideo;
+	
+internal
+	initS;
+
+state
+	init: STARTT;
+	S60;
+	Accept;
+
+transition
+
+	 //Main Scenario
+	from STARTT
+		sync initS()
+		deadline lazy
+	to S60;
+	from S60
+		sync sendVideo!(data)
+		deadline lazy
+	to Accept;
