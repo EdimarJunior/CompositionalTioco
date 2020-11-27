@@ -11,3 +11,15 @@ Our main objectives are to allow the SYMBOLRT tool to use the sequential, parall
 * Mouse Interrupted /\ Reset
 
 * Cell Phone
+
+
+- GETTING STARTED
+
+Installing SYMBOLRT
+
+- Download the binaries here http://www.dsc.ufcg.edu.br/~wilker/symbolrt/SYMBOLRT_1.4.zip.
+- Unzip
+- Install the dependences:
+  * Install the CVC4 (remeber, CVC4) and edit the symbolrt.properties file in order to set the correct path.
+  * Download the jgraphx package and extract the jgraphx.jar file. Put the extracted file in the lib folder.
+  * Download the xstream-[version].jar file, rename the file to xstream.jar, and put it in the lib folder.
