@@ -13,7 +13,7 @@ Our main objectives are to allow the SYMBOLRT tool to use the sequential, parall
 * Cell Phone
 
 
-GETTING STARTED
+## GETTING STARTED
 
   Installing SYMBOLRT:
   - Download the binaries here http://www.dsc.ufcg.edu.br/~wilker/symbolrt/SYMBOLRT_1.4.zip.
