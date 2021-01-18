@@ -16,9 +16,9 @@ Our main objectives are to allow the SYMBOLRT tool to use the sequential, parall
 ## GETTING STARTED
 
   Installing SYMBOLRT:
-  - Download the binaries here http://www.dsc.ufcg.edu.br/~wilker/symbolrt/SYMBOLRT_1.4.zip.
-  - Unzip
   - Install the dependences:
-    * Install the CVC4 (remeber, CVC4) and edit the symbolrt.properties file in order to set the correct path.
-    * Download the jgraphx package and extract the jgraphx.jar file. Put the extracted file in the lib folder.
-    * Download the xstream-[version].jar file, rename the file to xstream.jar, and put it in the lib folder.
+    * Install the CVC4.
+    * Install Java (8.0 or above
+  - Download and run symbolrt.deb
+  - Go to the root folder on OPT and run the test. Or just run the Eclipse Version.
+
